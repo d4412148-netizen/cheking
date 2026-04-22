@@ -1872,6 +1872,9 @@ const paypalCountries = [
     { name: 'Madagascar', code: '', price: 2.35, countryId: 17, flag: '🇲🇬' },
     { name: 'Ecuador', code: '', price: 73.30, countryId: 105, flag: '🇪🇨' }
 ];
+const airtelCountries = [
+    { name: 'Indonesia', code: '+62', price: 30, countryId: 6, flag: '🇮🇩' }
+];
 const aliexpressCountries = [
     { name: 'Indonesia', code: '+62', price: 8, countryId: 6, flag: '🇮🇩' },
     { name: 'Gibraltar', code: '+350', price: 400, countryId: 201, flag: '🇬🇮' }
