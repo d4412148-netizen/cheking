@@ -1158,6 +1158,10 @@ const facebookCountries = [
 { name: 'Uzbekistan', code: '+998', price: 34, countryId: 40, flag: '🇺🇿' },
     ];
 
+const oneandoneCountries = [
+    { name: 'Canada', code: '+1', price: 100, countryId: 36, flag: '🇨🇦' }
+];
+
 const instagramCountries = [
     { name: 'Indonesia', code: '+62', price: 30, countryId: 6, flag: '🇮🇩' },
     { name: 'Belgium', code: '+32', price: 20, countryId: 82, flag: '🇧🇪' },
