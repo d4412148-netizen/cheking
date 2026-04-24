@@ -1158,10 +1158,6 @@ const facebookCountries = [
 { name: 'Uzbekistan', code: '+998', price: 34, countryId: 40, flag: '🇺🇿' },
     ];
 
-const oneandoneCountries = [
-    { name: 'Canada', code: '+1', price: 100, countryId: 36, flag: '🇨🇦' }
-];
-
 const instagramCountries = [
     { name: 'Indonesia', code: '+62', price: 30, countryId: 6, flag: '🇮🇩' },
     { name: 'Belgium', code: '+32', price: 20, countryId: 82, flag: '🇧🇪' },
@@ -2175,6 +2171,15 @@ const uberCountries = [
     { name: 'Venezuela', code: '', price: 36.85, countryId: 70, flag: '🇻🇪' },
     { name: 'Vietnam', code: '', price: 24.30, countryId: 10, flag: '🇻🇳' },
     { name: 'Zimbabwe', code: '', price: 10, countryId: 96, flag: '🇿🇼' }
+];
+const oneandoneCountries = [
+    { name: 'Canada', code: '+1', price: 100, countryId: 36, flag: '🇨🇦' },
+    { name: 'USA', code: '+1', price: 90, countryId: 187, flag: '🇺🇸' },
+    { name: 'United Kingdom', code: '+44', price: 85, countryId: 16, flag: '🇬🇧' },
+    { name: 'Germany', code: '+49', price: 80, countryId: 43, flag: '🇩🇪' },
+    { name: 'Australia', code: '+61', price: 95, countryId: 175, flag: '🇦🇺' },
+    { name: 'India', code: '+91', price: 70, countryId: 22, flag: '🇮🇳' },
+    { name: 'Pakistan', code: '+92', price: 60, countryId: 66, flag: '🇵🇰' }
 ];
 const microsoftCountries = [
     { name: 'Brazil', code: '+55', price: 9, countryId: 73, flag: '🇧🇷' },
