@@ -3057,8 +3057,8 @@ const stratoCountries = [
 ];
 
 const oneandoneCountries = [
-    { name: 'Indonesia', code: '+62', price: 100, countryId: 6, flag: '🇮🇩' }
-     { name: 'Canada', code: '+1', price: 100, countryId: 36, flag: '🇨🇦' }
+   { name: 'Indonesia', code: '+62', price: 100, countryId: 6, flag: '🇮🇩' },
+    { name: 'Canada', code: '+1', price: 100, countryId: 36, flag: '🇨🇦' }
 ];
 
 const surveybellCountries = [
