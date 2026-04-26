@@ -244,11 +244,11 @@
         @keyframes otpPulse{0%,100%{opacity:.45;transform:scale(.92)}50%{opacity:1;transform:scale(1.05)}}
         @keyframes ringSpin{to{transform:rotate(360deg)}}
         @keyframes paymentTickPop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
-        .floating-whatsapp-btn{position:fixed;right:16px;left:auto;bottom:88px;z-index:90;display:inline-flex;align-items:center;justify-content:center;height:56px;width:56px;border-radius:999px;background:#25D366;box-shadow:0 14px 30px rgba(37,211,102,.35);border:2px solid rgba(255,255,255,.92)}
+        .floating-whatsapp-btn{position:fixed;right:16px;left:auto;bottom:77px;z-index:2147482999;display:inline-flex;align-items:center;justify-content:center;height:36px;width:36px;border-radius:999px;background:#25D366;box-shadow:0 10px 20px rgba(37,211,102,.30);border:2px solid rgba(255,255,255,.92);transition:transform .2s ease,background-color .2s ease,right .2s ease,bottom .2s ease}
         .floating-whatsapp-btn:hover{transform:translateY(-2px);background:#1fba57}
-        .floating-whatsapp-btn img{height:28px;width:28px;display:block}
+        .floating-whatsapp-btn img{height:20px;width:20px;display:block}
         @media (min-width:640px){.service-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.country-table-head{display:grid;grid-template-columns:48px minmax(0,1fr) 110px 110px;gap:.75rem;padding:.85rem 1rem;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:inherit}.country-table-row{grid-template-columns:48px minmax(0,1fr) 110px 110px}.payment-detail-row{flex-direction:row;align-items:center;justify-content:space-between}.payment-detail-main{min-width:0;flex:1}.payment-detail-actions{justify-content:flex-end}}
-        @media (max-width:640px){#payment-modal{padding:56px 10px 12px}.payment-modal-shell{width:100%;max-height:calc(100vh - 72px);border-radius:24px}.payment-modal-body{max-height:calc(100vh - 72px);padding:12px}.payment-brand-subtitle{max-width:none}.payment-number-group,.payment-upload-top{justify-content:flex-start;align-items:flex-start}.payment-step-grid{grid-template-columns:1fr}.payment-info-item,.payment-info-row{align-items:flex-start}.sms-order-head{flex-direction:column;align-items:flex-start}.sms-order-phone-cluster{justify-content:flex-start;width:100%}.sms-order-info-row{align-items:flex-start}.sms-order-live-box,.sms-order-otp-box{justify-content:flex-start;align-items:flex-start}.sms-order-otp-value{margin-left:0}.sms-order-foot{flex-direction:column;align-items:flex-start}.guest-access-card{flex-direction:column;align-items:flex-start}.balance-banner-panel{min-width:0;width:auto}.balance-banner-amount{font-size:20px}.processing-inline-row{grid-template-columns:1fr}.terms-modal-shell{max-height:calc(100vh - 120px);border-radius:20px}.terms-modal-card{max-height:calc(100vh - 120px);padding:10px 10px 10px}.terms-policy-body{font-size:11px;line-height:1.55;padding:10px 10px 6px}.terms-actions{position:relative;bottom:auto;flex-direction:column;padding-top:8px;background:linear-gradient(180deg,rgba(240,253,244,0) 0%,rgba(240,253,244,.96) 24%,rgba(220,252,231,.98) 100%)}.floating-whatsapp-btn{bottom:102px}}
+        @media (max-width:640px){#payment-modal{padding:56px 10px 12px}.payment-modal-shell{width:100%;max-height:calc(100vh - 72px);border-radius:24px}.payment-modal-body{max-height:calc(100vh - 72px);padding:12px}.payment-brand-subtitle{max-width:none}.payment-number-group,.payment-upload-top{justify-content:flex-start;align-items:flex-start}.payment-step-grid{grid-template-columns:1fr}.payment-info-item,.payment-info-row{align-items:flex-start}.sms-order-head{flex-direction:column;align-items:flex-start}.sms-order-phone-cluster{justify-content:flex-start;width:100%}.sms-order-info-row{align-items:flex-start}.sms-order-live-box,.sms-order-otp-box{justify-content:flex-start;align-items:flex-start}.sms-order-otp-value{margin-left:0}.sms-order-foot{flex-direction:column;align-items:flex-start}.guest-access-card{flex-direction:column;align-items:flex-start}.balance-banner-panel{min-width:0;width:auto}.balance-banner-amount{font-size:20px}.processing-inline-row{grid-template-columns:1fr}.terms-modal-shell{max-height:calc(100vh - 120px);border-radius:20px}.terms-modal-card{max-height:calc(100vh - 120px);padding:10px 10px 10px}.terms-policy-body{font-size:11px;line-height:1.55;padding:10px 10px 6px}.terms-actions{position:relative;bottom:auto;flex-direction:column;padding-top:8px;background:linear-gradient(180deg,rgba(240,253,244,0) 0%,rgba(240,253,244,.96) 24%,rgba(220,252,231,.98) 100%)}.floating-whatsapp-btn{bottom:77px}}
         @media (max-width:640px){#member-history-section{max-width:480px;margin-left:auto;margin-right:auto}.history-top-nav-button{min-height:46px;font-size:12px}.history-top-nav-meta{padding:0 .55rem;font-size:11px}}
         @media (max-width:380px){.history-top-nav{grid-template-columns:1fr}}
     </style>
@@ -798,6 +798,65 @@
             s1.setAttribute('crossorigin', '*');
             var s0 = document.getElementsByTagName('script')[0];
             s0.parentNode.insertBefore(s1, s0);
+        })();
+
+        (function () {
+            var gap = 5;
+            var fallbackRight = 16;
+            var fallbackBottom = 77;
+            var selectorList = ['.tawk-min-container', '#tawkchat-container', 'iframe[title*="chat"]', 'iframe[title*="Chat"]'];
+
+            function getWhatsappButton() {
+                return document.querySelector('.floating-whatsapp-btn');
+            }
+
+            function getTawkTarget() {
+                for (var i = 0; i < selectorList.length; i += 1) {
+                    var element = document.querySelector(selectorList[i]);
+                    if (!element) continue;
+                    var rect = element.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) return { element: element, rect: rect };
+                }
+                return null;
+            }
+
+            function applyFallback(button) {
+                button.style.right = fallbackRight + 'px';
+                button.style.bottom = fallbackBottom + 'px';
+            }
+
+            function alignWhatsappButton() {
+                var button = getWhatsappButton();
+                if (!button) return;
+                var target = getTawkTarget();
+                if (!target) {
+                    applyFallback(button);
+                    return;
+                }
+                var rect = target.rect;
+                var right = Math.max(fallbackRight, Math.round(window.innerWidth - rect.right));
+                var bottom = Math.max(16, Math.round(window.innerHeight - rect.top + gap));
+                button.style.right = right + 'px';
+                button.style.bottom = bottom + 'px';
+            }
+
+            function startAlignment() {
+                alignWhatsappButton();
+                window.addEventListener('resize', alignWhatsappButton);
+                setTimeout(alignWhatsappButton, 300);
+                setTimeout(alignWhatsappButton, 1000);
+                setTimeout(alignWhatsappButton, 2000);
+                setInterval(alignWhatsappButton, 2500);
+                if (document.body) {
+                    new MutationObserver(alignWhatsappButton).observe(document.body, { childList: true, subtree: true, attributes: true });
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startAlignment, { once: true });
+            } else {
+                startAlignment();
+            }
         })();
     </script>
     <script src="/app.js"></script>
