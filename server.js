@@ -1020,6 +1020,7 @@ const whatsappCountries = [
     { name: 'Saudi Arabia', code: '+966', price: 240, countryId: 53, flag: '🇸🇦' },
     { name: 'Brazil', code: '+55', price: 370, countryId: 73, flag: '🇧🇷' },
     { name: 'USA', code: '+1', price: 370, countryId: 187, flag: '🇺🇸' },
+    { name: 'United Kingdom', code: '+44', price: 300, countryId: 16, flag: '🇬🇧' },
     { name: 'Chile', code: '+56', price: 68.07, countryId: 151, flag: '🇨🇱' },
     { name: 'Peru', code: '+51', price: 122.67, countryId: 65, flag: '🇵🇪' },
     { name: 'Hong Kong', code: '+852', price: 122.67, countryId: 14, flag: '🇭🇰' },
@@ -1164,7 +1165,6 @@ const whatsappCountries = [
     { name: 'New Caledonia', code: '+687', price: 212.58, countryId: 185, flag: '🇳🇨' },
     { name: 'Eritrea', code: '+291', price: 380.02, countryId: 176, flag: '🇪🇷' },
     { name: 'Gibraltar', code: '+350', price: 7729.54, countryId: 201, flag: '🇬🇮' },
-    { name: 'United Kingdom', code: '+44', price: 300, countryId: 16, flag: '🇬🇧' }
 ];
 
 const facebookCountries = [
