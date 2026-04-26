@@ -2376,6 +2376,14 @@ const easypayCountries = [
     { name: 'USA', code: '+1', price: 87, countryId: 187, flag: '🇺🇸' }
 ];
 
+const smilesCountries = [
+    { name: 'Indonesia', code: '+62', price: 100, countryId: 6, flag: '🇮🇩' }
+];
+
+const anyotherCountries = [
+    { name: 'Indonesia', code: '+62', price: 100, countryId: 6, flag: '🇮🇩' }
+];
+
 const mercadoCountries = [
     { name: 'Argentina', code: '+54', price: 15.65, countryId: 39, flag: '🇦🇷' },
     { name: 'Bolivia', code: '+591', price: 69.52, countryId: 92, flag: '🇧🇴' },
