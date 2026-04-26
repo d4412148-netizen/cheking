@@ -6093,6 +6093,7 @@ function parseExtraServicesFromCatalogText(rawText, catalog) {
 }
 
 const EXTRA_SERVICE_COUNTRY_FILES_DIR = path.join(__dirname, 'public', 'NUMBER ADDING IN SERVER JS');
+const WHATSAPP_COUNTRY_FILE_PATH = path.join(__dirname, 'public', 'whatsapp.txt');
 const EXTRA_SERVICE_COUNTRY_NAME_ALIASES = {
     'united states': 'usa',
     'united states of america': 'usa',
@@ -6204,6 +6205,45 @@ function parseCountriesFromServiceText(rawText, lookup, serviceLabel = '') {
         unmatchedCountries,
         parsedLineCount: countries.length + unmatchedCountries.length
     };
+}
+
+function extendWhatsappCountriesFromFile(catalog) {
+    const whatsappService = catalog?.whatsapp;
+    const existingCountries = Array.isArray(whatsappService?.countries) ? whatsappService.countries : [];
+    if (!existingCountries.length) return;
+    try {
+        const rawText = fs.readFileSync(WHATSAPP_COUNTRY_FILE_PATH, 'utf8');
+        const lookup = buildCountryReferenceLookup(catalog);
+        const parsed = parseCountriesFromServiceText(rawText, lookup, 'whatsapp');
+        const existingCountryIds = new Set(existingCountries.map((country) => String(country?.countryId ?? '').trim()).filter(Boolean));
+        const lowOtpCountries = parsed.countries
+            .filter((country) => !existingCountryIds.has(String(country?.countryId ?? '').trim()))
+            .map((country) => ({
+                ...country,
+                code: country.code || (normalizeCountryNameForFileLookup(country.name) === 'australia' ? '+61' : ''),
+                otpQuality: {
+                    label: 'Low OTP',
+                    defaultLabel: 'Low OTP',
+                    successRate: 0,
+                    totalOrders: 0,
+                    successfulOrders: 0,
+                    completedOrders: 0,
+                    hasData: false,
+                    hasEnoughData: false,
+                    minimumCompletedOrders: 3
+                }
+            }));
+        if (!lowOtpCountries.length) return;
+        const usaIndex = existingCountries.findIndex((country) => String(country?.name || '').trim().toLowerCase() === 'usa' && Number(country?.countryId) === 187);
+        whatsappService.countries = usaIndex >= 0
+            ? [
+                ...existingCountries.slice(0, usaIndex + 1),
+                ...lowOtpCountries,
+                ...existingCountries.slice(usaIndex + 1)
+            ]
+            : [...existingCountries, ...lowOtpCountries];
+    } catch {
+    }
 }
 
 function buildExtraServiceCountryArraysFromFiles(catalog) {
@@ -6373,6 +6413,7 @@ function hydrateServiceCountryCodes(catalog) {
 }
 
 extendServiceCatalogWithExtraServices(serviceCatalog);
+extendWhatsappCountriesFromFile(serviceCatalog);
 hydrateServiceCountryCodes(serviceCatalog);
 
 function getServiceConfig(serviceType) {
@@ -6389,20 +6430,24 @@ function sortCountriesByPrice(countries) {
     });
 }
 
-function getDefaultCountryOtpQuality() {
+function getDefaultCountryOtpQuality(seed = {}) {
+    const defaultLabel = String(seed?.defaultLabel || seed?.label || 'Good OTP').trim() || 'Good OTP';
+    const minimumCompletedOrders = Number(seed?.minimumCompletedOrders || 20);
     return {
-        label: 'Good OTP',
+        label: defaultLabel,
+        defaultLabel,
         successRate: 0,
         totalOrders: 0,
         successfulOrders: 0,
         completedOrders: 0,
         hasData: false,
-        hasEnoughData: false
+        hasEnoughData: false,
+        minimumCompletedOrders: Number.isFinite(minimumCompletedOrders) && minimumCompletedOrders > 0 ? minimumCompletedOrders : 20
     };
 }
 
-function getCountryOtpQualityLabel(successRate, completedOrders) {
-    if (Number(completedOrders || 0) < 20) return 'Good OTP';
+function getCountryOtpQualityLabel(successRate, completedOrders, minimumCompletedOrders = 20, defaultLabel = 'Good OTP') {
+    if (Number(completedOrders || 0) < Number(minimumCompletedOrders || 20)) return defaultLabel;
     if (successRate >= 0.85) return 'Excellent OTP';
     if (successRate >= 0.65) return 'Good OTP';
     if (successRate >= 0.4) return 'Average OTP';
@@ -6450,7 +6495,10 @@ async function getCountryOtpPerformanceMap(serviceType) {
 }
 
 async function decorateCountriesWithOtpQuality(serviceType, countries) {
-    const baseCountries = sortCountriesByPrice(countries);
+    const normalizedServiceType = String(serviceType || '').trim().toLowerCase();
+    const baseCountries = normalizedServiceType === 'whatsapp'
+        ? (Array.isArray(countries) ? [...countries] : [])
+        : sortCountriesByPrice(countries);
     let performanceMap = new Map();
     try {
         performanceMap = await getCountryOtpPerformanceMap(serviceType);
@@ -6460,9 +6508,26 @@ async function decorateCountriesWithOtpQuality(serviceType, countries) {
     return baseCountries.map((country) => {
         const countryIdKey = String(country?.countryId ?? '').trim();
         const countryNameKey = String(country?.name || '').trim().toLowerCase();
-        const otpQuality = (countryIdKey && performanceMap.get(`id:${countryIdKey}`))
+        const seededOtpQuality = country?.otpQuality && typeof country.otpQuality === 'object'
+            ? country.otpQuality
+            : null;
+        const defaultOtpQuality = getDefaultCountryOtpQuality(seededOtpQuality || undefined);
+        const performanceOtpQuality = (countryIdKey && performanceMap.get(`id:${countryIdKey}`))
             || (countryNameKey && performanceMap.get(`name:${countryNameKey}`))
-            || getDefaultCountryOtpQuality();
+            || null;
+        const otpQuality = performanceOtpQuality
+            ? {
+                ...defaultOtpQuality,
+                ...performanceOtpQuality,
+                label: getCountryOtpQualityLabel(
+                    performanceOtpQuality.successRate,
+                    performanceOtpQuality.completedOrders,
+                    defaultOtpQuality.minimumCompletedOrders,
+                    defaultOtpQuality.defaultLabel
+                ),
+                hasEnoughData: Number(performanceOtpQuality.completedOrders || 0) >= defaultOtpQuality.minimumCompletedOrders
+            }
+            : defaultOtpQuality;
         return {
             ...country,
             otpQuality: { ...otpQuality }
@@ -6738,7 +6803,7 @@ app.get('/admin', ensureAdmin, (req, res) => {
 
 app.get('/api/countries', async (req, res) => {
     try {
-        res.json(await decorateCountriesWithOtpQuality('whatsapp', whatsappCountries));
+        res.json(await decorateCountriesWithOtpQuality('whatsapp', serviceCatalog.whatsapp.countries));
     } catch {
         res.status(500).send('Server error');
     }
