@@ -6183,7 +6183,7 @@ function extendWhatsappCountriesFromFile(catalog) {
 }
 
  const whatsappCountryStatus = {
-    'South Africa': { label: 'High OTP', color: 'green' },
+    'South Africa': { label: 'High OTP', color: 'red' },
     Indonesia: { label: 'Medium OTP', color: 'yellow' },
     Canada: { label: 'Low OTP', color: 'red' }
  };
