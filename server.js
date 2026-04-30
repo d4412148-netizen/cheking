@@ -1054,7 +1054,6 @@ const whatsappCountries = [
     { name: 'Kenya', code: '+254', price: 146.33, countryId: 8, flag: '🇰🇪' },
     { name: 'Cameroon', code: '+237', price: 92.46, countryId: 41, flag: '🇨🇲' },
     { name: 'Georgia', code: '+995', price: 230.78, countryId: 128, flag: '🇬🇪' },
-    { name: 'Pakistan', code: '+92', price: 110.29, countryId: 66, flag: '🇵🇰' },
     { name: 'Cambodia', code: '+855', price: 107.02, countryId: 24, flag: '🇰🇭' },
     { name: 'Bangladesh', code: '+880', price: 131.4, countryId: 60, flag: '🇧🇩' },
     { name: 'Armenia', code: '+374', price: 212.58, countryId: 148, flag: '🇦🇲' },
