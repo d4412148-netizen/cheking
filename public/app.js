@@ -3061,9 +3061,12 @@ async function login(email, password) {
             body: JSON.stringify({ email, password }),
             credentials: 'include'
         });
-        if (!response.ok) throw new Error(await response.text());
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+            throw new Error(payload?.message || 'Login failed');
+        }
         clearAuthFormError();
-        showToast('Logged in successfully', 'success');
+        showToast(payload.message || 'Logged in successfully', 'success');
         await checkAuth();
         closeModal('login-prompt');
     } catch (err) {
