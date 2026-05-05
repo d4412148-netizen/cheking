@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true" role="img">
+  <title>Microsoft</title>
+  <rect x="8" y="8" width="22" height="22" rx="2" fill="#F25022"/>
+  <rect x="34" y="8" width="22" height="22" rx="2" fill="#7FBA00"/>
+  <rect x="8" y="34" width="22" height="22" rx="2" fill="#00A4EF"/>
+  <rect x="34" y="34" width="22" height="22" rx="2" fill="#FFB900"/>
+</svg>

@@ -1,0 +1,10 @@
+◇ injected env (15) from .env // tip: ⌘ enable debugging { debug: true }
+Server running on http://0.0.0.0:3006
+[PASSWORD_RESET][request] email=mrfreset417524@deltajohnsons.com
+[PASSWORD_RESET][user-found] userId=113 email=mrfreset417524@deltajohnsons.com
+[PASSWORD_RESET][token-saved] userId=113 expiresAt=2026-05-05T11:55:01.892Z
+[MAIL][verify:start] smtp.gmail.com:587 (TLS)
+[MAIL][verify:success] smtp.gmail.com:587 (TLS)
+[MAIL][send:start] smtp.gmail.com:587 (TLS) -> mrfreset417524@deltajohnsons.com
+[MAIL][send:success] smtp.gmail.com:587 (TLS) -> mrfreset417524@deltajohnsons.com | messageId=<6ef5fa1c-4080-e9f4-9c65-8b35aef4797d@gmail.com> | accepted=mrfreset417524@deltajohnsons.com
+[PASSWORD_RESET][completed] userId=113 email=mrfreset417524@deltajohnsons.com
