@@ -7256,7 +7256,7 @@ app.post('/api/login', async (req, res) => {
                 reason: 'invalid_email',
                 email
             }));
-            return res.status(400).send('Valid email is required');
+            return res.status(400).json({ success: false, message: 'Valid email is required' });
         }
         if (typeof password !== 'string' || !password) {
             console.log('[login-debug]', JSON.stringify({
@@ -7264,7 +7264,7 @@ app.post('/api/login', async (req, res) => {
                 reason: 'missing_password',
                 email
             }));
-            return res.status(400).send('Password is required');
+            return res.status(400).json({ success: false, message: 'Password is required' });
         }
         const user = await findUser(email);
         console.log('[login-debug]', JSON.stringify({
@@ -7279,7 +7279,7 @@ app.post('/api/login', async (req, res) => {
                 reason: 'user_not_found',
                 email
             }));
-            return res.status(401).send('Invalid credentials');
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
         if (!user.is_active) {
             console.log('[login-debug]', JSON.stringify({
@@ -7288,7 +7288,7 @@ app.post('/api/login', async (req, res) => {
                 email,
                 matchedUser: { id: user.id, email: user.email }
             }));
-            return res.status(401).send('Account blocked');
+            return res.status(401).json({ success: false, message: 'Account blocked' });
         }
         const passwordCheck = await verifyPassword(password, user.password);
         console.log('[login-debug]', JSON.stringify({
@@ -7310,7 +7310,7 @@ app.post('/api/login', async (req, res) => {
                 matchedUser: { id: user.id, email: user.email },
                 loginAttempts: newAttempts
             }));
-            return res.status(401).send('Invalid credentials');
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
         if (passwordCheck.needsUpgrade) {
             const upgradedHash = await hashPassword(password);
@@ -7327,10 +7327,16 @@ app.post('/api/login', async (req, res) => {
                     matchedUser: { id: user.id, email: user.email }
                 }));
                 console.error('Session regenerate error:', regenErr);
-                return res.status(500).send('Login failed');
+                return res.status(500).json({ success: false, message: 'Login failed' });
             }
             req.session.userId = user.id;
             req.session.save((saveErr) => {
+                console.log('[login-debug]', JSON.stringify({
+                    stage: 'session_save',
+                    email,
+                    matchedUser: { id: user.id, email: user.email },
+                    sessionSaved: !saveErr
+                }));
                 if (saveErr) {
                     console.log('[login-debug]', JSON.stringify({
                         stage: 'reject',
@@ -7339,14 +7345,14 @@ app.post('/api/login', async (req, res) => {
                         matchedUser: { id: user.id, email: user.email }
                     }));
                     console.error('Session save error:', saveErr);
-                    return res.status(500).send('Login failed');
+                    return res.status(500).json({ success: false, message: 'Login failed' });
                 }
                 console.log('[login-debug]', JSON.stringify({
                     stage: 'success',
                     email,
                     matchedUser: { id: user.id, email: user.email }
                 }));
-                return res.json({ success: true });
+                return res.json({ success: true, message: 'Login successful' });
             });
         });
     } catch (err) {
@@ -7357,7 +7363,7 @@ app.post('/api/login', async (req, res) => {
             passwordReceived: typeof req.body?.password === 'string' && req.body.password.length > 0
         }));
         console.error('Login route error:', err);
-        res.status(500).send(formatSafeError(err));
+        res.status(500).json({ success: false, message: formatSafeError(err) });
     }
 });
 
