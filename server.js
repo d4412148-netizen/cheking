@@ -629,6 +629,8 @@ async function initDB() {
             await queryRun('UPDATE users SET role = $1, is_admin = TRUE WHERE id = $2', ['admin', existingAdmin.id]);
             console.log('Existing admin email promoted to admin privileges');
         }
+        // Ensure admin is not locked out by previous failed attempts.
+        await queryRun('UPDATE users SET is_active = TRUE, login_attempts = 0 WHERE email = $1', [adminEmail]);
     } else {
         console.log('ADMIN_EMAIL / ADMIN_PASSWORD not set, skipping admin auto-create');
     }
