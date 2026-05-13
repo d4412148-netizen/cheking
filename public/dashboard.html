@@ -62,20 +62,6 @@
         .app-dropdown-link.accent{background:#dcfce7;color:#166534}
         .history-header-button,.balance-add-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;border-radius:999px;background:var(--primary);padding:.52rem .9rem;font-size:11px;font-weight:800;letter-spacing:.05em;color:#ffffff;white-space:nowrap;box-shadow:0 8px 18px rgba(22,163,74,.16)}
         .history-header-button:hover,.balance-add-button:hover{background:var(--primary-strong)}
-        .referral-header-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border-radius:999px;border:1px solid rgba(74,222,128,.34);background:linear-gradient(135deg,rgba(15,23,42,.88) 0%,rgba(6,95,70,.88) 100%);padding:.5rem .88rem;font-size:11px;font-weight:800;letter-spacing:.03em;color:#ecfdf5;box-shadow:0 10px 24px rgba(6,95,70,.28)}
-        .referral-header-button:hover{transform:translateY(-1px);border-color:rgba(74,222,128,.64);box-shadow:0 14px 28px rgba(6,95,70,.34)}
-        .referral-modal-shell{width:min(760px,100%);max-height:calc(100vh - 56px);overflow:hidden;border-radius:24px;border:1px solid rgba(148,163,184,.35);background:linear-gradient(150deg,rgba(2,6,23,.92) 0%,rgba(15,23,42,.94) 52%,rgba(4,47,46,.96) 100%);box-shadow:0 30px 70px rgba(2,6,23,.55);animation:referralModalIn .22s ease-out}
-        .referral-modal-body{max-height:calc(100vh - 56px);overflow-y:auto;padding:18px}
-        .referral-title{font-size:24px;font-weight:800;color:#ecfeff}
-        .referral-copy{margin-top:8px;font-size:14px;line-height:1.7;color:#cbd5e1}
-        .referral-block{margin-top:14px;border-radius:16px;border:1px solid rgba(148,163,184,.3);background:rgba(15,23,42,.55);padding:14px}
-        .referral-link-box{margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border-radius:12px;border:1px solid rgba(148,163,184,.35);background:rgba(15,23,42,.7);padding:10px 12px}
-        .referral-link-value{font-size:13px;color:#f8fafc;word-break:break-all}
-        .referral-copy-button{border:1px solid rgba(74,222,128,.35);border-radius:999px;background:#10b981;color:#062e24;font-size:12px;font-weight:800;padding:7px 14px}
-        .referral-copy-button:hover{background:#34d399}
-        .referral-note{margin-top:8px;font-size:12px;font-weight:700;color:#facc15}
-        .referral-admin-card{margin-top:20px;border-radius:20px;border:1px solid #dbeafe;background:#f8fafc;padding:16px}
-        @keyframes referralModalIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
         .history-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:1px solid var(--border);background:#ffffff;padding:4px 10px;font-size:11px;font-weight:700;color:var(--muted)}
         .history-pill.active{border-color:#86efac;background:#dcfce7;color:#166534}
 
@@ -209,6 +195,41 @@
         .admin-section-group{margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid #dbeafe}
         .admin-section-group:first-of-type{margin-top:1.25rem;padding-top:0;border-top:none}
         .admin-section-kicker{font-size:11px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:#16a34a}
+
+        .referral-cta-button{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:42px;border-radius:999px;border:1px solid rgba(244,114,182,.24);background:linear-gradient(135deg,rgba(88,28,135,.95) 0%,rgba(15,23,42,.98) 48%,rgba(236,72,153,.92) 100%);padding:0 .95rem;font-size:12px;font-weight:800;color:#ffffff;box-shadow:0 16px 32px rgba(15,23,42,.32),inset 0 1px 0 rgba(255,255,255,.1)}
+        .referral-cta-button:hover{transform:translateY(-1px);box-shadow:0 18px 36px rgba(15,23,42,.36),inset 0 1px 0 rgba(255,255,255,.14)}
+        .referral-cta-button.hidden{display:none!important}
+        .referral-modal-shell{width:min(780px,100%);max-height:min(86vh,780px);overflow:hidden;border-radius:32px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(145deg,rgba(15,23,42,.98) 0%,rgba(30,41,59,.96) 55%,rgba(88,28,135,.95) 100%);box-shadow:0 30px 60px rgba(2,6,23,.52)}
+        .referral-modal-body{display:grid;gap:18px;max-height:min(86vh,780px);overflow:auto;padding:20px;background:radial-gradient(circle at top right,rgba(236,72,153,.16),transparent 30%),radial-gradient(circle at top left,rgba(59,130,246,.18),transparent 28%),linear-gradient(180deg,rgba(15,23,42,.98) 0%,rgba(17,24,39,.98) 100%);-webkit-overflow-scrolling:touch}
+        .referral-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+        .referral-modal-kicker{font-size:11px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:#f9a8d4}
+        .referral-modal-title{margin-top:6px;font-size:clamp(1.5rem,4vw,2rem);font-weight:800;line-height:1.15;color:#ffffff}
+        .referral-modal-subtitle{margin-top:8px;max-width:560px;font-size:14px;line-height:1.7;color:#cbd5e1}
+        #referral-modal .close-x{display:inline-flex;height:44px;width:44px;align-items:center;justify-content:center;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);font-size:18px;color:#e2e8f0}
+        #referral-modal .close-x:hover{background:rgba(30,41,59,.78);color:#ffffff}
+        .referral-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+        .referral-summary-card{border-radius:22px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(30,41,59,.82) 0%,rgba(15,23,42,.9) 100%);padding:16px}
+        .referral-summary-label{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#94a3b8}
+        .referral-summary-value{margin-top:8px;font-size:24px;font-weight:900;color:#ffffff}
+        .referral-summary-note{margin-top:4px;font-size:12px;line-height:1.6;color:#cbd5e1}
+        .referral-link-panel{display:grid;gap:12px;border-radius:24px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(15,23,42,.85) 0%,rgba(30,41,59,.94) 100%);padding:16px}
+        .referral-link-label{font-size:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#f9a8d4}
+        .referral-link-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+        .referral-link-input{flex:1 1 280px;min-height:54px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(15,23,42,.92);padding:0 16px;font-size:14px;color:#ffffff}
+        .referral-link-input::placeholder{color:#94a3b8}
+        .referral-copy-button{display:inline-flex;align-items:center;justify-content:center;min-width:132px;min-height:54px;border-radius:18px;border:1px solid rgba(249,168,212,.28);background:linear-gradient(135deg,#ec4899 0%,#7c3aed 100%);padding:0 18px;font-size:13px;font-weight:800;color:#ffffff;box-shadow:0 18px 30px rgba(124,58,237,.26)}
+        .referral-copy-button:hover{transform:translateY(-1px)}
+        .referral-copy-button.is-copied{background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);border-color:rgba(134,239,172,.35);box-shadow:0 18px 30px rgba(34,197,94,.24)}
+        .referral-link-footnote{font-size:12px;line-height:1.6;color:#cbd5e1}
+        .referral-sections{display:grid;gap:12px}
+        .referral-section-card{border-radius:24px;border:1px solid rgba(255,255,255,.1);background:rgba(15,23,42,.58);padding:18px}
+        .referral-section-heading{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#ffffff}
+        .referral-section-copy{margin-top:10px;font-size:14px;line-height:1.8;color:#dbe4f0}
+        .referral-list{display:grid;gap:8px;margin-top:12px;padding-left:18px;color:#dbe4f0;font-size:14px;line-height:1.75}
+        .referral-list[dir='rtl']{padding-left:0;padding-right:18px}
+        .referral-highlight{color:#f9a8d4;font-weight:800}
+
+        @media (max-width:640px){.referral-cta-button{padding:0 .8rem;font-size:11px}.referral-summary-grid{grid-template-columns:1fr}.referral-link-row{flex-direction:column;align-items:stretch}.referral-copy-button{width:100%}.referral-modal-body{padding:16px}}
 
         .payment-success-title{max-width:420px;font-size:22px;font-weight:800;line-height:1.8;color:#111827}
         #payment-modal{align-items:flex-start!important;padding-top:68px;padding-bottom:16px}
@@ -432,8 +453,9 @@
             <div class="relative flex items-center justify-between gap-3 py-3">
                 <div class="text-sm font-extrabold uppercase tracking-[0.28em] text-slate-100 sm:text-base">MRF SMS PANEL</div>
                 <div class="flex items-center gap-2">
-                    <button id="header-referral-button" type="button" data-action="open-referral-modal" class="referral-header-button hidden" aria-label="Open referral bonus program">
-                        <span>🎁 Earn Bonus</span>
+                    <button id="header-referral-button" type="button" class="referral-cta-button hidden" data-action="open-referral-modal">
+                        <span aria-hidden="true">🎁</span>
+                        <span>Earn Bonus</span>
                     </button>
                     <div id="account-menu-root" class="relative">
                         <button id="header-account-button" type="button" data-action="toggle-account-menu" class="header-icon-button" aria-label="Open account details">
@@ -500,10 +522,10 @@
                     </div>
                     <div id="login-form-wrap" class="auth-form-wrap mt-5">
                         <div id="login-form" class="auth-form-stack" role="form" aria-label="Login to dashboard">
-                            <input class="credential-decoy" type="text" tabindex="-1" aria-hidden="true" autocomplete="username">
-                            <input class="credential-decoy" type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password">
-                            <div class="auth-input-shell"><input id="login-email" name="contact-handle" type="text" inputmode="email" placeholder="Email" class="auth-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required></div>
-                            <div class="auth-input-shell"><input id="login-password" name="dashboard-access-code" type="text" inputmode="text" placeholder="Password" class="auth-input masked-password-field" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" required></div>
+                            <input class="credential-decoy" type="text" tabindex="-1" aria-hidden="true" autocomplete="off">
+                            <input class="credential-decoy" type="password" tabindex="-1" aria-hidden="true" autocomplete="off">
+                            <div class="auth-input-shell"><input id="login-email" name="email" type="email" inputmode="email" placeholder="Email" class="auth-input" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></div>
+                            <div class="auth-input-shell"><input id="login-password" name="password" type="password" placeholder="Password" class="auth-input masked-password-field" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required></div>
                             <button id="login-btn" type="button" class="auth-primary-action">Login to Dashboard</button>
                             <button id="google-login-btn" type="button" class="auth-google-action"><span class="auth-google-logo" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c2.993 0 5.729 1.128 7.818 2.982l5.657-5.657C34.046 6.053 29.27 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c2.993 0 5.729 1.128 7.818 2.982l5.657-5.657C34.046 6.053 29.27 4 24 4c-7.682 0-14.344 4.337-17.694 10.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.173 35.091 26.715 36 24 36c-5.203 0-9.622-3.317-11.286-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.084 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg></span><span>Sign in with Google</span></button>
                             <div class="auth-forgot-row"><a href="/forgot-password.html" class="auth-forgot-link">Forgot Password?</a></div>
@@ -515,46 +537,8 @@
                             <div class="auth-input-shell"><input id="reg-email" type="email" placeholder="Email" class="auth-input" required></div>
                             <div class="auth-input-shell"><input id="reg-password" type="password" placeholder="Password" class="auth-input" required></div>
                             <div class="auth-input-shell"><input id="reg-confirm-password-ui" type="password" placeholder="Confirm Password" class="auth-input" autocomplete="new-password"></div>
-                            <div class="auth-input-shell"><input id="reg-referral" type="text" placeholder="Referral Code (optional)" class="auth-input" autocomplete="off" autocapitalize="characters"></div>
                             <button id="register-btn" type="submit" class="auth-primary-action">Create Account</button>
                         </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="referral-modal" class="app-modal hidden fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/80 px-4 py-7">
-            <div class="modal-content referral-modal-shell">
-                <div class="referral-modal-body">
-                    <div class="flex items-start justify-between gap-4">
-                        <h3 class="referral-title">🎁 Referral Bonus Program</h3>
-                        <button type="button" class="close-x" data-close-modal="referral-modal">✕</button>
-                    </div>
-                    <p class="referral-copy">Invite friends and earn rewards.</p>
-                    <div class="referral-block">
-                        <div class="text-sm font-semibold text-emerald-300">💰 Rewards:</div>
-                        <p class="referral-copy">If your friend joins using your referral link and deposits Rs.170 or more:</p>
-                        <p class="referral-copy">You get: Rs.50 bonus (Main Balance)<br>Your friend gets: Rs.20 welcome bonus (Main Balance)</p>
-                        <div class="referral-note">⚠ Important: Bonus is not withdrawable. Bonus can only be used on MRF SMS PANEL services.</div>
-                    </div>
-                    <div class="referral-block">
-                        <div class="text-sm font-semibold text-cyan-300">🎯 How it works:</div>
-                        <p class="referral-copy">1. Copy your referral link<br>2. Share with friends<br>3. Friend signs up using your link<br>4. Friend deposits Rs.170 or more<br>5. Rewards automatically added</p>
-                    </div>
-                    <div class="referral-block text-right" dir="rtl">
-                        <div class="text-sm font-semibold text-emerald-300">🎁 ریفرل بونس پروگرام</div>
-                        <p class="referral-copy">اپنے دوستوں کو دعوت دیں اور انعام حاصل کریں۔</p>
-                        <p class="referral-copy">💰 انعام: اگر آپ کا دوست آپ کے ریفرل لنک سے شامل ہو کر 170 روپے یا اس سے زیادہ ڈپازٹ کرے:<br>آپ کو: 50 روپے بونس (مین بیلنس میں)<br>آپ کے دوست کو: 20 روپے ویلکم بونس (مین بیلنس میں)</p>
-                        <p class="referral-copy">⚠ اہم بات: یہ بونس نکالا نہیں جا سکتا۔ یہ صرف MRF SMS PANEL کی سروسز میں استعمال ہو گا۔</p>
-                        <p class="referral-copy">🎯 طریقہ:<br>1. اپنا ریفرل لنک کاپی کریں<br>2. دوستوں کے ساتھ شیئر کریں<br>3. دوست آپ کے لنک سے سائن اپ کرے<br>4. دوست 170 روپے یا زیادہ ڈپازٹ کرے<br>5. بونس خودکار طریقے سے شامل ہو جائے گا</p>
-                    </div>
-                    <div class="referral-block">
-                        <div class="text-sm font-semibold text-white">Your Referral Link:</div>
-                        <div class="referral-link-box">
-                            <div id="referral-link-value" class="referral-link-value">—</div>
-                            <button id="referral-copy-btn" class="referral-copy-button" type="button" data-action="copy-referral-link">Copy</button>
-                        </div>
-                        <div id="referral-security-message" class="referral-note hidden">Referral bonus not allowed (security protection)</div>
                     </div>
                 </div>
             </div>
@@ -726,6 +710,65 @@ Patience for 7–15 days makes account stronger.
 
 Slow usage = Safe account
 Spam activity = Ban risk</div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="referral-modal" class="app-modal hidden fixed inset-0 z-[140] flex items-start justify-center bg-slate-950/80 px-4 py-6">
+            <div class="modal-content referral-modal-shell">
+                <div class="referral-modal-body">
+                    <div class="referral-modal-header">
+                        <div>
+                            <div class="referral-modal-kicker">Invite &amp; Earn</div>
+                            <h3 class="referral-modal-title">Referral Bonus Program</h3>
+                            <p class="referral-modal-subtitle">Share your unique link, invite friends, and earn a premium reward directly in your main balance after a qualifying deposit is approved.</p>
+                        </div>
+                        <button type="button" class="close-x" data-close-modal="referral-modal">✕</button>
+                    </div>
+                    <div class="referral-summary-grid">
+                        <div class="referral-summary-card">
+                            <div class="referral-summary-label">Friend Deposit</div>
+                            <div class="referral-summary-value">Rs. 170+</div>
+                            <div class="referral-summary-note">When your friend deposits Rs. 170 or more, your referral becomes eligible for the reward.</div>
+                        </div>
+                        <div class="referral-summary-card">
+                            <div class="referral-summary-label">Your Reward</div>
+                            <div class="referral-summary-value">Rs. 50</div>
+                            <div class="referral-summary-note">Your Rs. 50 bonus is added to your main balance after the deposit is approved.</div>
+                        </div>
+                    </div>
+                    <div class="referral-link-panel">
+                        <div class="referral-link-label">Your Referral Link</div>
+                        <div class="referral-link-row">
+                            <input id="referral-link-input" class="referral-link-input" type="text" value="" placeholder="Your referral link will appear here" readonly>
+                            <button id="referral-copy-button" type="button" class="referral-copy-button" data-action="copy-referral-link">Copy Link</button>
+                        </div>
+                        <div class="referral-link-footnote">Share this link with friends. If they sign up from your link and deposit <span class="referral-highlight">Rs. 170 or more</span>, you receive <span class="referral-highlight">Rs. 50</span> in your main balance.</div>
+                    </div>
+                    <div class="referral-sections">
+                        <section class="referral-section-card">
+                            <div class="referral-section-heading">English Details</div>
+                            <div class="referral-section-copy">Invite your friends with your unique referral link and earn bonus rewards in a simple and transparent way.</div>
+                            <ul class="referral-list">
+                                <li>Share your personal referral link with friends.</li>
+                                <li>Your friend must sign up using your link.</li>
+                                <li>When your friend deposits Rs. 170 or more, you earn Rs. 50 bonus.</li>
+                                <li>The bonus is credited to your main balance after the deposit is approved.</li>
+                                <li>For fraud protection, referrals may be blocked or flagged if the same IP, same device, same browser fingerprint, or duplicate payment account is detected.</li>
+                            </ul>
+                        </section>
+                        <section class="referral-section-card" dir="rtl">
+                            <div class="referral-section-heading">اردو تفصیل</div>
+                            <div class="referral-section-copy">اپنا یونیک ریفرل لنک دوستوں کے ساتھ شیئر کریں اور آسان طریقے سے بونس حاصل کریں۔</div>
+                            <ul class="referral-list" dir="rtl">
+                                <li>اپنا ذاتی ریفرل لنک اپنے دوستوں کے ساتھ شیئر کریں۔</li>
+                                <li>دوست کو آپ کے لنک کے ذریعے سائن اپ کرنا ہوگا۔</li>
+                                <li>جب دوست 170 روپے یا اس سے زیادہ ڈپازٹ کرے گا تو آپ کو 50 روپے بونس ملے گا۔</li>
+                                <li>بونس منظور شدہ ڈپازٹ کے بعد آپ کے مین بیلنس میں شامل کیا جائے گا۔</li>
+                                <li>فراڈ سے بچاؤ کے لیے اگر ایک ہی IP، ایک ہی ڈیوائس، ایک ہی براؤزر فنگرپرنٹ یا ایک ہی پیمنٹ اکاؤنٹ استعمال ہوا تو ریفرل بلاک یا ایڈمن ریویو کے لیے فلیگ ہو سکتا ہے۔</li>
+                            </ul>
                         </section>
                     </div>
                 </div>
@@ -962,21 +1005,6 @@ Spam activity = Ban risk</div>
                             <p class="mt-1 text-sm text-slate-400">User email, service, price, API cost, profit, and status in one table.</p>
                         </div>
                         <div id="admin-orders-list" class="scroll-area overflow-x-auto"></div>
-                    </div>
-                </div>
-                <div class="admin-section-group">
-                    <div>
-                        <div class="admin-section-kicker">5. Referral Program</div>
-                        <div class="admin-section-title">Referral Monitoring</div>
-                        <div class="admin-section-copy">Track referral reward payouts and blocked fraud attempts.</div>
-                    </div>
-                    <div class="referral-admin-card">
-                        <h4 class="text-lg font-semibold text-slate-900">Referral Bonuses</h4>
-                        <div id="admin-referral-bonuses-list" class="scroll-area overflow-x-auto"></div>
-                    </div>
-                    <div class="referral-admin-card">
-                        <h4 class="text-lg font-semibold text-slate-900">Blocked Fraud Attempts</h4>
-                        <div id="admin-referral-fraud-list" class="scroll-area overflow-x-auto"></div>
                     </div>
                 </div>
             </section>
