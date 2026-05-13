@@ -109,9 +109,9 @@ const SMSBOWER_GOOGLE_SERVICE = 'go';
 
 const EXPIRED_REFUND_MESSAGE = 'Time expired. Your money has been returned to your wallet.';
 const ORDER_COOLDOWN_SECONDS = 30;
-const REFERRAL_MIN_DEPOSIT = 170;
-const REFERRAL_REFERRER_BONUS = 50;
-const REFERRAL_NEW_USER_BONUS = 20;
+const REFERRAL_MIN_DEPOSIT_PKR = 170;
+const REFERRAL_BONUS_PKR = 50;
+const REFERRAL_LINK_FALLBACK_BASE = 'https://mrfsms.com';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -159,6 +159,23 @@ function createFallbackPool(message = 'Database is not configured') {
     };
 }
 
+function resolveDatabaseSslConfig(connectionString) {
+    const normalizedConnectionString = String(connectionString || '').trim();
+    if (!normalizedConnectionString) {
+        return false;
+    }
+    if (/sslmode=(require|verify-ca|verify-full|prefer)/i.test(normalizedConnectionString)) {
+        return { rejectUnauthorized: false };
+    }
+    try {
+        const databaseHost = new URL(normalizedConnectionString).hostname.toLowerCase();
+        if (/(render\.com|railway\.app|supabase\.co|neon\.tech|amazonaws\.com|aivencloud\.com)/i.test(databaseHost)) {
+            return { rejectUnauthorized: false };
+        }
+    } catch {}
+    return IS_PROD ? { rejectUnauthorized: false } : false;
+}
+
 function createDatabasePool() {
     if (!DATABASE_URL) {
         databasePoolEnabled = false;
@@ -167,7 +184,7 @@ function createDatabasePool() {
     try {
         return new Pool({
             connectionString: DATABASE_URL,
-            ssl: IS_PROD ? { rejectUnauthorized: false } : false,
+            ssl: resolveDatabaseSslConfig(DATABASE_URL),
             connectionTimeoutMillis: 10000
         });
     } catch (err) {
@@ -246,6 +263,15 @@ app.use(express.json());
 app.get(['/', '/index.html', '/dashboard', '/signup'], (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
+
+app.get('/signup', (req, res) => {
+    const ref = req.query.ref;
+    if (ref) {
+        return res.redirect(`/?ref=${encodeURIComponent(ref)}`);
+    }
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.use(express.static('public', { index: false }));
 
 app.use(session({
@@ -419,6 +445,73 @@ function buildAbsoluteUrl(relativePath) {
     return new URL(normalizedPath.replace(/^\//, ''), base).toString();
 }
 
+function normalizeReferralCode(value) {
+    return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
+}
+
+function normalizeClientIp(value) {
+    const rawValue = String(value || '').split(',')[0].trim();
+    if (!rawValue) return '';
+    return rawValue.replace(/^::ffff:/, '').toLowerCase();
+}
+
+function normalizeDeviceFingerprint(value) {
+    return String(value || '').trim().slice(0, 160);
+}
+
+function hashValue(value) {
+    return crypto.createHash('sha256').update(String(value || '')).digest('hex');
+}
+
+function getRequestClientIp(req) {
+    return normalizeClientIp(req?.ip || req?.headers?.['x-forwarded-for'] || '');
+}
+
+function getRequestDeviceFingerprint(req) {
+    const bodyValue = req?.body && typeof req.body.deviceFingerprint === 'string' ? req.body.deviceFingerprint : '';
+    const headerValue = typeof req?.get === 'function' ? req.get('x-device-fingerprint') : '';
+    return normalizeDeviceFingerprint(bodyValue || headerValue);
+}
+
+function getRequestBrowserFingerprint(req) {
+    const fingerprintSource = [
+        typeof req?.get === 'function' ? req.get('user-agent') : '',
+        typeof req?.get === 'function' ? req.get('accept-language') : '',
+        typeof req?.get === 'function' ? req.get('sec-ch-ua') : '',
+        typeof req?.get === 'function' ? req.get('sec-ch-ua-platform') : ''
+    ].filter(Boolean).join('|');
+    if (!fingerprintSource) return '';
+    return hashValue(fingerprintSource).slice(0, 40);
+}
+
+async function hashUploadedFile(filePath) {
+    if (!filePath) return '';
+    try {
+        const fileBuffer = await fs.promises.readFile(filePath);
+        return crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    } catch {
+        return '';
+    }
+}
+
+function buildPublicAppBaseUrl(req) {
+    if (APP_BASE_URL) return APP_BASE_URL;
+    const requestHost = String(typeof req?.get === 'function' ? req.get('host') : '').trim();
+    if (requestHost) {
+        return `${req.protocol || 'https'}://${requestHost}`;
+    }
+    return REFERRAL_LINK_FALLBACK_BASE;
+}
+
+function buildReferralLink(req, referralCode) {
+    const normalizedCode = normalizeReferralCode(referralCode);
+    const baseUrl = buildPublicAppBaseUrl(req).replace(/\/+$/, '');
+    if (!normalizedCode) {
+        return `${baseUrl}/signup`;
+    }
+    return `${baseUrl}/signup?ref=${encodeURIComponent(normalizedCode)}`;
+}
+
 async function sendPasswordResetEmail(user, token) {
     if (!mailTransporter) {
         throw new Error('Password reset email is not configured');
@@ -488,10 +581,18 @@ async function initDB() {
     await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS "displayName" TEXT');
     await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS "photo" TEXT');
     await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
-    await ensureReferralSchema();
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL');
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_code TEXT');
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_ip TEXT');
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_device_fingerprint TEXT');
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_browser_fingerprint TEXT');
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_last_known_ip TEXT');
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_last_known_device_fingerprint TEXT');
+    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_last_known_browser_fingerprint TEXT');
     await queryRun("UPDATE users SET is_admin = TRUE WHERE LOWER(COALESCE(role, 'user')) = 'admin'");
     await queryRun('CREATE UNIQUE INDEX IF NOT EXISTS users_googleId_unique_idx ON users ("googleId") WHERE "googleId" IS NOT NULL');
-    await queryRun('CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_unique_idx ON users (referral_code) WHERE referral_code IS NOT NULL');
+    await queryRun('CREATE INDEX IF NOT EXISTS idx_users_referred_by_user_id ON users (referred_by_user_id)');
+    await queryRun('CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users (referral_code)');
 
     await queryRun(`
         CREATE TABLE IF NOT EXISTS orders (
@@ -582,6 +683,41 @@ async function initDB() {
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )
     `);
+    await queryRun('ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS request_ip TEXT');
+    await queryRun('ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS device_fingerprint TEXT');
+    await queryRun('ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS browser_fingerprint TEXT');
+    await queryRun('ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS proof_hash TEXT');
+    await queryRun('CREATE INDEX IF NOT EXISTS idx_payment_requests_proof_hash ON payment_requests (proof_hash)');
+
+    await queryRun(`
+        CREATE TABLE IF NOT EXISTS referrals (
+            id SERIAL PRIMARY KEY,
+            referrer_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            referred_user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            referral_code TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            signup_ip TEXT,
+            signup_device_fingerprint TEXT,
+            signup_browser_fingerprint TEXT,
+            referrer_ip_snapshot TEXT,
+            referrer_device_fingerprint TEXT,
+            referrer_browser_fingerprint TEXT,
+            same_ip_block BOOLEAN DEFAULT FALSE,
+            same_device_block BOOLEAN DEFAULT FALSE,
+            same_browser_fingerprint_flag BOOLEAN DEFAULT FALSE,
+            duplicate_payment_account_block BOOLEAN DEFAULT FALSE,
+            suspicious_admin_flag BOOLEAN DEFAULT FALSE,
+            suspicious_reasons TEXT,
+            qualifying_payment_request_id INTEGER REFERENCES payment_requests(id) ON DELETE SET NULL,
+            qualifying_transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+            qualifying_amount NUMERIC(12,2) DEFAULT 0,
+            bonus_amount NUMERIC(12,2) DEFAULT 0,
+            bonus_awarded_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await queryRun('CREATE INDEX IF NOT EXISTS idx_referrals_referrer_user_id ON referrals (referrer_user_id, created_at DESC)');
+    await queryRun('CREATE INDEX IF NOT EXISTS idx_referrals_referred_user_id ON referrals (referred_user_id)');
 
     if (ADMIN_EMAIL && ADMIN_PASSWORD) {
         const adminEmail = sanitizeEmail(ADMIN_EMAIL);
@@ -610,48 +746,11 @@ END $$;
     `);
     await queryRun('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS type TEXT DEFAULT \'deposit\'');
     await queryRun('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT');
+    await queryRun('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS request_ip TEXT');
+    await queryRun('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS device_fingerprint TEXT');
+    await queryRun('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS browser_fingerprint TEXT');
+    await queryRun('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS proof_hash TEXT');
     await queryRun('UPDATE transactions SET type = $1 WHERE type IS NULL', ['deposit']);
-
-}
-
-async function ensureReferralSchema() {
-    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id) ON DELETE SET NULL');
-    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS registered_ip TEXT');
-    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_fingerprint TEXT');
-    await queryRun('ALTER TABLE users ADD COLUMN IF NOT EXISTS device_fingerprint TEXT');
-    await queryRun('CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_unique_idx ON users (referral_code) WHERE referral_code IS NOT NULL');
-    await queryRun(`
-        CREATE TABLE IF NOT EXISTS referral_bonus_events (
-            id SERIAL PRIMARY KEY,
-            referrer_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            referred_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            deposit_amount NUMERIC(12,2) NOT NULL,
-            referrer_bonus NUMERIC(12,2) NOT NULL,
-            referred_bonus NUMERIC(12,2) NOT NULL,
-            payment_account TEXT,
-            source_ip TEXT,
-            status TEXT DEFAULT 'approved',
-            notes TEXT,
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE (referred_user_id)
-        )
-    `);
-    await queryRun('CREATE INDEX IF NOT EXISTS idx_referral_bonus_referrer ON referral_bonus_events (referrer_user_id, created_at DESC)');
-    await queryRun('CREATE INDEX IF NOT EXISTS idx_referral_bonus_payment_account ON referral_bonus_events (payment_account)');
-    await queryRun(`
-        CREATE TABLE IF NOT EXISTS referral_fraud_attempts (
-            id SERIAL PRIMARY KEY,
-            referrer_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-            referred_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-            deposit_amount NUMERIC(12,2),
-            payment_account TEXT,
-            reason TEXT NOT NULL,
-            details TEXT,
-            status TEXT DEFAULT 'blocked',
-            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-    await queryRun('CREATE INDEX IF NOT EXISTS idx_referral_fraud_created_at ON referral_fraud_attempts (created_at DESC)');
 }
 
 async function findUser(email) {
@@ -662,278 +761,260 @@ async function findUserById(id) {
     return normalizeUser(await queryOne('SELECT * FROM users WHERE id = $1', [id]));
 }
 
-function getRequestIp(req) {
-    const raw = String(req.headers['x-forwarded-for'] || req.ip || req.socket?.remoteAddress || '').trim();
-    return raw.split(',')[0].trim();
-}
-
-function isPublicIp(ip) {
-    const value = String(ip || '').trim().toLowerCase();
-    if (!value) return false;
-    if (value === '::1' || value === '127.0.0.1' || value === 'localhost') return false;
-    if (value.startsWith('10.') || value.startsWith('192.168.')) return false;
-    if (/^172\.(1[6-9]|2\d|3[01])\./.test(value)) return false;
-    if (value.startsWith('fc') || value.startsWith('fd') || value.startsWith('fe80:')) return false;
-    return true;
-}
-
-async function resolveReferralOwnerId(referralCode) {
-    await ensureReferralSchema();
-    const normalizedCode = String(referralCode || '').trim().toUpperCase();
+async function findUserByReferralCode(referralCode) {
+    const normalizedCode = normalizeReferralCode(referralCode);
     if (!normalizedCode) return null;
-    const owner = await queryOne('SELECT id FROM users WHERE UPPER(COALESCE(referral_code, \'\')) = $1', [normalizedCode]);
-    return owner?.id || null;
+    return normalizeUser(await queryOne('SELECT * FROM users WHERE referral_code = $1', [normalizedCode]));
+}
+
+async function createUniqueReferralCode() {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+        const candidate = crypto.randomBytes(6).toString('hex').slice(0, 8).toUpperCase();
+        const existing = await queryOne('SELECT id FROM users WHERE referral_code = $1', [candidate]);
+        if (!existing) {
+            return candidate;
+        }
+    }
+    return `RF${Date.now().toString(36).slice(-6)}`.toUpperCase();
+}
+
+async function updateReferralSnapshot(userId, snapshot = {}) {
+    return queryRun(
+        'UPDATE users SET referral_last_known_ip = $1, referral_last_known_device_fingerprint = $2, referral_last_known_browser_fingerprint = $3 WHERE id = $4',
+        [
+            normalizeClientIp(snapshot.ip) || null,
+            normalizeDeviceFingerprint(snapshot.deviceFingerprint) || null,
+            String(snapshot.browserFingerprint || '').trim().slice(0, 64) || null,
+            userId
+        ]
+    );
+}
+
+async function createReferralRecord({ referrerUser, referredUser, signupIp, signupDeviceFingerprint, signupBrowserFingerprint }) {
+    if (!referrerUser || !referredUser) return null;
+    const normalizedSignupIp = normalizeClientIp(signupIp);
+    const normalizedSignupDevice = normalizeDeviceFingerprint(signupDeviceFingerprint);
+    const normalizedSignupBrowser = String(signupBrowserFingerprint || '').trim().slice(0, 64);
+    const referrerIpSnapshot = normalizeClientIp(referrerUser.referral_last_known_ip || referrerUser.signup_ip);
+    const referrerDeviceSnapshot = normalizeDeviceFingerprint(referrerUser.referral_last_known_device_fingerprint || referrerUser.signup_device_fingerprint);
+    const referrerBrowserSnapshot = String(referrerUser.referral_last_known_browser_fingerprint || referrerUser.signup_browser_fingerprint || '').trim().slice(0, 64);
+    const sameIpBlock = Boolean(normalizedSignupIp && referrerIpSnapshot && normalizedSignupIp === referrerIpSnapshot);
+    const sameDeviceBlock = Boolean(normalizedSignupDevice && referrerDeviceSnapshot && normalizedSignupDevice === referrerDeviceSnapshot);
+    const sameBrowserFingerprintFlag = Boolean(normalizedSignupBrowser && referrerBrowserSnapshot && normalizedSignupBrowser === referrerBrowserSnapshot);
+    const suspiciousReasons = [
+        sameIpBlock ? 'same_ip' : '',
+        sameDeviceBlock ? 'same_device' : '',
+        sameBrowserFingerprintFlag ? 'same_browser_fingerprint' : ''
+    ].filter(Boolean).join(', ');
+    return queryRun(
+        `
+            INSERT INTO referrals (
+                referrer_user_id,
+                referred_user_id,
+                referral_code,
+                status,
+                signup_ip,
+                signup_device_fingerprint,
+                signup_browser_fingerprint,
+                referrer_ip_snapshot,
+                referrer_device_fingerprint,
+                referrer_browser_fingerprint,
+                same_ip_block,
+                same_device_block,
+                same_browser_fingerprint_flag,
+                suspicious_admin_flag,
+                suspicious_reasons
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        `,
+        [
+            referrerUser.id,
+            referredUser.id,
+            referrerUser.referralCode || referrerUser.referral_code,
+            sameIpBlock || sameDeviceBlock ? 'blocked' : 'pending',
+            normalizedSignupIp || null,
+            normalizedSignupDevice || null,
+            normalizedSignupBrowser || null,
+            referrerIpSnapshot || null,
+            referrerDeviceSnapshot || null,
+            referrerBrowserSnapshot || null,
+            sameIpBlock,
+            sameDeviceBlock,
+            sameBrowserFingerprintFlag,
+            Boolean(sameIpBlock || sameDeviceBlock || sameBrowserFingerprintFlag),
+            suspiciousReasons || null
+        ]
+    );
 }
 
 async function createUser(name, email, password, options = {}) {
-    await ensureReferralSchema();
-    const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const referralCode = await createUniqueReferralCode();
     const hashedPassword = await hashPassword(password);
-    const referredBy = options.referredBy || null;
-    const registeredIp = String(options.registeredIp || '').trim() || null;
-    const browserFingerprint = String(options.browserFingerprint || '').trim() || null;
-    const deviceFingerprint = String(options.deviceFingerprint || '').trim() || null;
-    return queryRun(
-        'INSERT INTO users (email, password, name, referral_code, referred_by, registered_ip, browser_fingerprint, device_fingerprint) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-        [sanitizeEmail(email), hashedPassword, String(name || '').trim(), referralCode, referredBy, registeredIp, browserFingerprint, deviceFingerprint]
-    );
-}
-
-async function recordReferralFraudAttempt(client, payload) {
-    await client.query(
-        `INSERT INTO referral_fraud_attempts
-         (referrer_user_id, referred_user_id, deposit_amount, payment_account, reason, details, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    return normalizeUser(await queryOne(
+        `
+            INSERT INTO users (
+                email,
+                password,
+                name,
+                referral_code,
+                referred_by_user_id,
+                referred_by_code,
+                signup_ip,
+                signup_device_fingerprint,
+                signup_browser_fingerprint
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING *
+        `,
         [
-            payload.referrerUserId || null,
-            payload.referredUserId || null,
-            Number(payload.depositAmount || 0),
-            payload.paymentAccount || null,
-            payload.reason || 'blocked',
-            payload.details || null,
-            'blocked'
+            sanitizeEmail(email),
+            hashedPassword,
+            String(name || '').trim(),
+            referralCode,
+            Number.isFinite(Number(options.referredByUserId)) ? Number(options.referredByUserId) : null,
+            normalizeReferralCode(options.referredByCode) || null,
+            normalizeClientIp(options.signupIp) || null,
+            normalizeDeviceFingerprint(options.signupDeviceFingerprint) || null,
+            String(options.signupBrowserFingerprint || '').trim().slice(0, 64) || null
         ]
-    );
+    ));
 }
 
-async function applyReferralBonusForDeposit(client, payload = {}) {
-    const referredUserId = Number(payload.referredUserId || 0);
-    const depositAmount = Number(payload.depositAmount || 0);
-    const qualifiesDeposit = Boolean(referredUserId && depositAmount >= REFERRAL_MIN_DEPOSIT);
-    console.log(`[REFERRAL] deposit qualified=${qualifiesDeposit} referredUserId=${referredUserId} amount=${depositAmount}`);
-    if (!qualifiesDeposit) {
-        return { applied: false, reason: 'threshold_not_met' };
+async function applyReferralBonusForApprovedDeposit(client, deposit = {}) {
+    const referredUserId = Number(deposit.userId);
+    const approvedAmount = Number(deposit.amount || 0);
+    if (!Number.isFinite(referredUserId) || referredUserId <= 0 || approvedAmount < REFERRAL_MIN_DEPOSIT_PKR) {
+        return { applied: false, reason: 'minimum_not_met' };
     }
 
-    const referredUserRes = await client.query(
-        `SELECT id, email, referred_by, registered_ip, browser_fingerprint, device_fingerprint
-         FROM users WHERE id = $1 FOR UPDATE`,
+    const referralRes = await client.query(
+        `
+            SELECT r.*
+            FROM referrals r
+            WHERE r.referred_user_id = $1
+            ORDER BY r.id DESC
+            LIMIT 1
+            FOR UPDATE
+        `,
         [referredUserId]
     );
-    const referredUser = referredUserRes.rows[0];
-    if (!referredUser || !referredUser.referred_by) {
-        console.log(`[REFERRAL] bonus credited=false reason=no_referrer referredUserId=${referredUserId}`);
-        return { applied: false, reason: 'no_referrer' };
-    }
+    const referral = referralRes.rows[0];
+    if (!referral) return { applied: false, reason: 'no_referral' };
+    if (referral.bonus_awarded_at) return { applied: false, reason: 'already_awarded' };
 
-    const existingBonus = await client.query(
-        'SELECT id FROM referral_bonus_events WHERE referred_user_id = $1 LIMIT $2',
-        [referredUserId, 1]
-    );
-    if (existingBonus.rowCount > 0) {
-        console.log(`[REFERRAL] bonus credited=false reason=already_rewarded referredUserId=${referredUserId}`);
-        return { applied: false, reason: 'already_rewarded' };
-    }
+    const paymentReference = String(deposit.transactionId || '').trim();
+    const proofHash = String(deposit.proofHash || '').trim();
+    let duplicatePaymentAccountBlock = false;
 
-    const referrerRes = await client.query(
-        `SELECT id, email, registered_ip, browser_fingerprint, device_fingerprint
-         FROM users WHERE id = $1 FOR UPDATE`,
-        [referredUser.referred_by]
-    );
-    const referrer = referrerRes.rows[0];
-    if (!referrer) {
-        console.log(`[REFERRAL] bonus credited=false reason=missing_referrer referredUserId=${referredUserId}`);
-        return { applied: false, reason: 'missing_referrer' };
-    }
-
-    const paymentAccount = String(payload.paymentAccount || '').trim() || null;
-    const sourceIp = String(payload.sourceIp || '').trim() || null;
-
-    const failedChecks = [];
-    if (
-        referredUser.registered_ip
-        && referrer.registered_ip
-        && referredUser.registered_ip === referrer.registered_ip
-        && isPublicIp(referredUser.registered_ip)
-    ) {
-        failedChecks.push('same_ip');
-    }
-    if (referredUser.browser_fingerprint && referrer.browser_fingerprint && referredUser.browser_fingerprint === referrer.browser_fingerprint) {
-        failedChecks.push('same_browser_fingerprint');
-    }
-    if (referredUser.device_fingerprint && referrer.device_fingerprint && referredUser.device_fingerprint === referrer.device_fingerprint) {
-        failedChecks.push('same_device_fingerprint');
-    }
-
-    if (paymentAccount) {
-        const repeatedPayment = await client.query(
-            'SELECT id FROM referral_bonus_events WHERE payment_account = $1 LIMIT $2',
-            [paymentAccount, 1]
+    if (paymentReference || proofHash) {
+        const duplicatePaymentRequestRes = await client.query(
+            `
+                SELECT 1
+                FROM payment_requests
+                WHERE user_id <> $1
+                  AND status = 'approved'
+                  AND (
+                      ($2 <> '' AND COALESCE(transaction_id, '') = $2)
+                      OR ($3 <> '' AND COALESCE(proof_hash, '') = $3)
+                  )
+                LIMIT 1
+            `,
+            [referredUserId, paymentReference, proofHash]
         );
-        if (repeatedPayment.rowCount > 0) {
-            failedChecks.push('payment_account_reuse');
+        duplicatePaymentAccountBlock = duplicatePaymentRequestRes.rowCount > 0;
+        if (!duplicatePaymentAccountBlock) {
+            const duplicateTransactionRes = await client.query(
+                `
+                    SELECT 1
+                    FROM transactions
+                    WHERE user_id <> $1
+                      AND LOWER(COALESCE(type, '')) = 'deposit'
+                      AND LOWER(COALESCE(status, 'pending')) = 'approved'
+                      AND (
+                          ($2 <> '' AND COALESCE(transaction_id, '') = $2)
+                          OR ($3 <> '' AND COALESCE(proof_hash, '') = $3)
+                      )
+                    LIMIT 1
+                `,
+                [referredUserId, paymentReference, proofHash]
+            );
+            duplicatePaymentAccountBlock = duplicateTransactionRes.rowCount > 0;
         }
     }
 
-    const duplicatePatternSignals = [];
-    if (String(referredUser.browser_fingerprint || '').trim()) {
-        duplicatePatternSignals.push({
-            field: 'browser_fingerprint',
-            value: String(referredUser.browser_fingerprint || '').trim()
-        });
-    }
-    if (String(referredUser.device_fingerprint || '').trim()) {
-        duplicatePatternSignals.push({
-            field: 'device_fingerprint',
-            value: String(referredUser.device_fingerprint || '').trim()
-        });
-    }
-    for (const signal of duplicatePatternSignals) {
-        const duplicatePattern = await client.query(
-            `SELECT COUNT(*)::int AS total
-             FROM users
-             WHERE id <> $1
-               AND ${signal.field} = $2`,
-            [referredUserId, signal.value]
-        );
-        if (Number(duplicatePattern.rows[0]?.total || 0) >= 2) {
-            failedChecks.push('duplicate_account_pattern');
-            break;
-        }
-    }
-
-    if (failedChecks.length) {
-        const failedReason = failedChecks.join(', ');
-        console.log(`[REFERRAL] fraud blocked reason=${failedReason || 'unknown'} referredUserId=${referredUserId}`);
-        await recordReferralFraudAttempt(client, {
-            referrerUserId: referrer.id,
-            referredUserId,
-            depositAmount,
-            paymentAccount,
-            reason: 'security_protection',
-            details: failedReason
-        });
-        console.log(`[REFERRAL] bonus credited=false reason=security_protection referredUserId=${referredUserId}`);
-        return { applied: false, reason: 'security_protection' };
-    }
-
-    await client.query('UPDATE users SET balance = COALESCE(balance, 0) + $1 WHERE id = $2', [REFERRAL_REFERRER_BONUS, referrer.id]);
-    await client.query('UPDATE users SET balance = COALESCE(balance, 0) + $1 WHERE id = $2', [REFERRAL_NEW_USER_BONUS, referredUserId]);
+    const sameIpBlock = Boolean(referral.same_ip_block) || Boolean(referral.signup_ip && referral.referrer_ip_snapshot && normalizeClientIp(referral.signup_ip) === normalizeClientIp(referral.referrer_ip_snapshot));
+    const sameDeviceBlock = Boolean(referral.same_device_block) || Boolean(referral.signup_device_fingerprint && referral.referrer_device_fingerprint && referral.signup_device_fingerprint === referral.referrer_device_fingerprint);
+    const sameBrowserFingerprintFlag = Boolean(referral.same_browser_fingerprint_flag) || Boolean(referral.signup_browser_fingerprint && referral.referrer_browser_fingerprint && referral.signup_browser_fingerprint === referral.referrer_browser_fingerprint);
+    const suspiciousReasons = [
+        sameIpBlock ? 'same_ip' : '',
+        sameDeviceBlock ? 'same_device' : '',
+        sameBrowserFingerprintFlag ? 'same_browser_fingerprint' : '',
+        duplicatePaymentAccountBlock ? 'duplicate_payment_account' : ''
+    ].filter(Boolean).join(', ');
 
     await client.query(
-        `INSERT INTO referral_bonus_events
-         (referrer_user_id, referred_user_id, deposit_amount, referrer_bonus, referred_bonus, payment_account, source_ip, status, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `
+            UPDATE referrals
+            SET same_ip_block = $1,
+                same_device_block = $2,
+                same_browser_fingerprint_flag = $3,
+                duplicate_payment_account_block = $4,
+                suspicious_admin_flag = $5,
+                suspicious_reasons = $6,
+                qualifying_payment_request_id = COALESCE($7, qualifying_payment_request_id),
+                qualifying_transaction_id = COALESCE($8, qualifying_transaction_id),
+                qualifying_amount = $9,
+                status = CASE WHEN $1 OR $2 OR $4 THEN 'blocked' ELSE status END
+            WHERE id = $10
+        `,
         [
-            referrer.id,
-            referredUserId,
-            depositAmount,
-            REFERRAL_REFERRER_BONUS,
-            REFERRAL_NEW_USER_BONUS,
-            paymentAccount,
-            sourceIp,
-            'approved',
-            'automatic_referral_reward'
+            sameIpBlock,
+            sameDeviceBlock,
+            sameBrowserFingerprintFlag,
+            duplicatePaymentAccountBlock,
+            Boolean(sameIpBlock || sameDeviceBlock || sameBrowserFingerprintFlag || duplicatePaymentAccountBlock),
+            suspiciousReasons || null,
+            Number.isFinite(Number(deposit.paymentRequestId)) ? Number(deposit.paymentRequestId) : null,
+            Number.isFinite(Number(deposit.transactionRecordId)) ? Number(deposit.transactionRecordId) : null,
+            approvedAmount,
+            referral.id
         ]
     );
 
+    if (sameIpBlock || sameDeviceBlock || duplicatePaymentAccountBlock) {
+        return { applied: false, reason: 'blocked' };
+    }
+
+    await client.query('UPDATE users SET balance = COALESCE(balance, 0) + $1 WHERE id = $2', [REFERRAL_BONUS_PKR, referral.referrer_user_id]);
     await client.query(
-        'INSERT INTO transactions (user_id, user_email, amount, type, status, description) VALUES ($1, $2, $3, $4, $5, $6)',
-        [referrer.id, referrer.email, REFERRAL_REFERRER_BONUS, 'referral_bonus', 'approved', `Referral bonus for user #${referredUserId}`]
+        'INSERT INTO balance_adjustments (user_id, amount, reason, admin_id) VALUES ($1, $2, $3, $4)',
+        [referral.referrer_user_id, REFERRAL_BONUS_PKR, `Referral bonus for user #${referredUserId} approved deposit`, null]
     );
     await client.query(
-        'INSERT INTO transactions (user_id, user_email, amount, type, status, description) VALUES ($1, $2, $3, $4, $5, $6)',
-        [referredUserId, referredUser.email, REFERRAL_NEW_USER_BONUS, 'referral_bonus', 'approved', 'Welcome referral bonus']
+        `
+            UPDATE referrals
+            SET bonus_amount = $1,
+                bonus_awarded_at = CURRENT_TIMESTAMP,
+                qualifying_payment_request_id = COALESCE($2, qualifying_payment_request_id),
+                qualifying_transaction_id = COALESCE($3, qualifying_transaction_id),
+                qualifying_amount = $4,
+                suspicious_admin_flag = $5,
+                suspicious_reasons = $6,
+                status = 'approved'
+            WHERE id = $7
+        `,
+        [
+            REFERRAL_BONUS_PKR,
+            Number.isFinite(Number(deposit.paymentRequestId)) ? Number(deposit.paymentRequestId) : null,
+            Number.isFinite(Number(deposit.transactionRecordId)) ? Number(deposit.transactionRecordId) : null,
+            approvedAmount,
+            Boolean(sameBrowserFingerprintFlag || suspiciousReasons),
+            suspiciousReasons || null,
+            referral.id
+        ]
     );
-    console.log(`[REFERRAL] bonus credited=true referredUserId=${referredUserId} referrerUserId=${referrer.id}`);
+
     return { applied: true };
-}
-
-async function getReferralOverviewByUser(userId) {
-    const user = await findUserById(userId);
-    if (!user) return null;
-    const bonusRows = await queryOne(
-        `SELECT
-            COUNT(*)::int AS total_referrals,
-            COALESCE(SUM(referrer_bonus), 0)::numeric AS total_earned
-         FROM referral_bonus_events
-         WHERE referrer_user_id = $1`,
-        [userId]
-    );
-    const blockedRows = await queryOne(
-        `SELECT COUNT(*)::int AS total_blocked
-         FROM referral_fraud_attempts
-         WHERE referred_user_id = $1`,
-        [userId]
-    );
-    return {
-        referralCode: user.referralCode || '',
-        referralLink: `${APP_BASE_URL || ''}/signup?ref=${encodeURIComponent(user.referralCode || '')}`,
-        totalReferrals: Number(bonusRows?.total_referrals || 0),
-        totalEarned: Number(bonusRows?.total_earned || 0),
-        blockedAttempts: Number(blockedRows?.total_blocked || 0),
-        blockedMessage: 'Referral bonus not allowed (security protection)'
-    };
-}
-
-async function getAdminReferralData() {
-    await ensureReferralSchema();
-    const bonuses = await queryAll(
-        `SELECT
-            rbe.id,
-            rbe.deposit_amount,
-            rbe.referrer_bonus,
-            rbe.referred_bonus,
-            rbe.payment_account,
-            rbe.status,
-            rbe.created_at,
-            referrer.email AS referrer_email,
-            referred.email AS referred_email
-         FROM referral_bonus_events rbe
-         LEFT JOIN users referrer ON referrer.id = rbe.referrer_user_id
-         LEFT JOIN users referred ON referred.id = rbe.referred_user_id
-         ORDER BY rbe.created_at DESC
-         LIMIT 300`
-    );
-    const fraudAttempts = await queryAll(
-        `SELECT
-            rfa.id,
-            rfa.deposit_amount,
-            rfa.payment_account,
-            rfa.reason,
-            rfa.details,
-            rfa.status,
-            rfa.created_at,
-            referrer.email AS referrer_email,
-            referred.email AS referred_email
-         FROM referral_fraud_attempts rfa
-         LEFT JOIN users referrer ON referrer.id = rfa.referrer_user_id
-         LEFT JOIN users referred ON referred.id = rfa.referred_user_id
-         ORDER BY rfa.created_at DESC
-         LIMIT 300`
-    );
-    return {
-        bonuses: bonuses.map((row) => ({
-            ...row,
-            deposit_amount: Number(row.deposit_amount || 0),
-            referrer_bonus: Number(row.referrer_bonus || 0),
-            referred_bonus: Number(row.referred_bonus || 0)
-        })),
-        fraudAttempts: fraudAttempts.map((row) => ({
-            ...row,
-            deposit_amount: Number(row.deposit_amount || 0)
-        }))
-    };
 }
 
 async function updateUserPassword(userId, newPlainPassword) {
@@ -1040,13 +1121,13 @@ async function approveTransaction(txId) {
             'UPDATE users SET balance = $1 WHERE id = $2',
             [Number(user.balance || 0) + Number(tx.amount || 0), tx.user_id]
         );
-        const referralResult = await applyReferralBonusForDeposit(client, {
-            referredUserId: tx.user_id,
-            depositAmount: Number(tx.amount || 0),
-            paymentAccount: tx.transaction_id,
-            sourceIp: null
+        await applyReferralBonusForApprovedDeposit(client, {
+            userId: tx.user_id,
+            amount: tx.amount,
+            transactionId: tx.transaction_id,
+            proofHash: tx.proof_hash,
+            transactionRecordId: txId
         });
-        console.log(`[REFERRAL] deposit approval route=legacy_transaction result=${referralResult.applied ? 'credited' : `skipped:${referralResult.reason}`}`);
         await client.query('COMMIT');
         await removeUploadedFile(screenshotToDelete);
     } catch (err) {
@@ -1327,19 +1408,48 @@ async function updateUserLastLogin(userId) {
     return queryRun('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
 }
 
+async function getExistingUserColumnNames() {
+    const rows = await queryRows(
+        `
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'users'
+        `
+    );
+    return new Set(rows.map((row) => String(row.column_name || '').trim()));
+}
+
+async function clearUserLoginBlockState(userId) {
+    const columnNames = await getExistingUserColumnNames();
+    const updates = ['login_attempts = 0', 'is_active = TRUE'];
+    if (columnNames.has('blocked_until')) {
+        updates.push('blocked_until = NULL');
+    }
+    if (columnNames.has('is_blocked')) {
+        updates.push('is_blocked = FALSE');
+    }
+    if (columnNames.has('device_fingerprint')) {
+        updates.push('device_fingerprint = NULL');
+    }
+    if (columnNames.has('browser_fingerprint')) {
+        updates.push('browser_fingerprint = NULL');
+    }
+    await queryRun(`UPDATE users SET ${updates.join(', ')} WHERE id = $1`, [userId]);
+    await queryRun('DELETE FROM user_sessions WHERE sess::text LIKE $1', [`%\"userId\":${Number(userId)}%`]);
+}
+
 const whatsappCountries = [
+    { name: 'South Africa', code: '+27', price: 80, countryId: 31, flag: '🇿🇦' },
+    { name: 'Indonesia', code: '+62', price: 170, countryId: 6, flag: '🇮🇩' },
     { name: 'Canada', code: '+1', price: 170, countryId: 36, flag: '🇨🇦' },
-    { name: 'Indonesia', code: '+62', price: 160, countryId: 6, flag: '🇮🇩' },
     { name: 'Philippines', code: '+63', price: 190, countryId: 4, flag: '🇵🇭' },
     { name: 'Thailand', code: '+66', price: 300, countryId: 52, flag: '🇹🇭' },
     { name: 'Vietnam', code: '+84', price: 210, countryId: 10, flag: '🇻🇳' },
     { name: 'Colombia', code: '+57', price: 240, countryId: 33, flag: '🇨🇴' },
     { name: 'Saudi Arabia', code: '+966', price: 240, countryId: 53, flag: '🇸🇦' },
     { name: 'Brazil', code: '+55', price: 370, countryId: 73, flag: '🇧🇷' },
-    { name: 'USA', code: '+1', price: 500, countryId: 187, flag: '🇺🇸' },
+    { name: 'USA', code: '+1', price: 370, countryId: 187, flag: '🇺🇸' },
     { name: 'United Kingdom', code: '+44', price: 300, countryId: 16, flag: '🇬🇧' },
-    { name: 'South Africa', code: '+27', price: 80, countryId: 31, flag: '🇿🇦' },
-    { name: 'Somalia', code: '+252', price: 65.16, countryId: 149, flag: '🇸🇴' },
     { name: 'Chile', code: '+56', price: 68.07, countryId: 151, flag: '🇨🇱' },
     { name: 'Peru', code: '+51', price: 122.67, countryId: 65, flag: '🇵🇪' },
     { name: 'Hong Kong', code: '+852', price: 122.67, countryId: 14, flag: '🇭🇰' },
@@ -1348,7 +1458,6 @@ const whatsappCountries = [
     { name: 'Australia', code: '+61', price: 768.77, countryId: 175, flag: '🇦🇺' },
     { name: 'Germany', code: '+49', price: 455, countryId: 43, flag: '🇩🇪' },
     { name: 'Yemen', code: '+967', price: 104.1, countryId: 30, flag: '🇾🇪' },
-    { name: 'India', code: '+91', price: 400, countryId: 22, flag: '🇮🇳' },
     { name: 'Portugal', code: '+351', price: 230.78, countryId: 117, flag: '🇵🇹' },
     { name: 'Spain', code: '+34', price: 980.25, countryId: 56, flag: '🇪🇸' },
     { name: 'Mexico', code: '+52', price: 230.78, countryId: 54, flag: '🇲🇽' },
@@ -1360,6 +1469,7 @@ const whatsappCountries = [
     { name: 'Romania', code: '+40', price: 230.05, countryId: 32, flag: '🇷🇴' },
     { name: 'Netherlands', code: '+31', price: 291.2, countryId: 48, flag: '🇳🇱' },
     { name: 'Czech Republic', code: '+420', price: 230.78, countryId: 63, flag: '🇨🇿' },
+    { name: 'Somalia', code: '+252', price: 65.16, countryId: 149, flag: '🇸🇴' },
     { name: 'Zambia', code: '+260', price: 212.58, countryId: 147, flag: '🇿🇲' },
     { name: 'Morocco', code: '+212', price: 102.65, countryId: 37, flag: '🇲🇦' },
     { name: 'Ghana', code: '+233', price: 212.58, countryId: 38, flag: '🇬🇭' },
@@ -2380,7 +2490,6 @@ const openaiCountries = [
 const paypalCountries = [
     { name: 'Iran', code: '', price: 2.35, countryId: 57, flag: '🇮🇷' },
     { name: 'Serbia', code: '', price: 196.78, countryId: 29, flag: '🇷🇸' },
-    { name: 'United Kingdom', code: '+44', price: 40, countryId: 16, flag: '🇬🇧' },
     { name: 'Turkey', code: '', price: 196.78, countryId: 62, flag: '🇹🇷' },
     { name: 'Azerbaijan', code: '', price: 278.71, countryId: 35, flag: '🇦🇿' },
     { name: 'Nigeria', code: '', price: 1.57, countryId: 19, flag: '🇳🇬' },
@@ -6502,18 +6611,17 @@ function extendWhatsappCountriesFromFile(catalog) {
 }
 
  const whatsappCountryStatus = {
-'South Africa': { label: 'Low OTP', color: 'red' },
+'South Africa': { label: 'Low OTP', color: 'green' },
 'Indonesia': { label: 'Good OTP', color: 'green' },
-'Canada': { label: 'Good OTP', color: 'green' },
+'Canada': { label: 'Low OTP', color: 'green' },
 'Philippines': { label: 'Good OTP', color: 'green' },
 'Thailand': { label: 'Good OTP', color: 'green' },
 'Vietnam': { label: 'Good OTP', color: 'green' },
 'Colombia': { label: 'Good OTP', color: 'green' },
 'Saudi Arabia': { label: 'Good OTP', color: 'green' },
 'Brazil': { label: 'Good OTP', color: 'green' },
-'Pakistan': { label: 'Out of stock', color: 'red' },
-'USA': { label: 'Good OTP', color: 'green' },
-'United Kingdom': { label: 'Good OTP', color: 'green' },
+'USA': { label: 'Low OTP', color: 'green' },
+'United Kingdom': { label: 'Low OTP', color: 'green' }
  };
 
  function buildExtraServiceCountryArraysFromFiles(catalog) {
@@ -7150,24 +7258,39 @@ app.post('/api/register', async (req, res) => {
         const name = String(req.body.name || '').trim();
         const email = sanitizeEmail(req.body.email);
         const password = req.body.password;
-        const referralCode = String(req.body.referralCode || req.query.ref || '').trim();
-        const browserFingerprint = String(req.body.browserFingerprint || '').trim();
-        const deviceFingerprint = String(req.body.deviceFingerprint || '').trim();
+        const referralCode = normalizeReferralCode(req.body.referralCode);
+        const signupIp = getRequestClientIp(req);
+        const signupDeviceFingerprint = getRequestDeviceFingerprint(req);
+        const signupBrowserFingerprint = getRequestBrowserFingerprint(req);
         if (!name) return res.status(400).send('Name is required');
         if (!validateEmail(email)) return res.status(400).send('Valid email is required');
         if (!validatePassword(password)) return res.status(400).send('Password must be at least 6 characters');
         const existing = await findUser(email);
         if (existing) return res.status(400).send('Email already exists');
-        const referredBy = await resolveReferralOwnerId(referralCode);
-        console.log(`[REFERRAL] referral captured=${Boolean(referredBy)} code=${referralCode || '-'} referrerUserId=${referredBy || 'null'}`);
-        await createUser(name, email, password, {
-            referredBy,
-            registeredIp: getRequestIp(req),
-            browserFingerprint,
-            deviceFingerprint
+        let referrerUser = null;
+        if (referralCode) {
+            referrerUser = await findUserByReferralCode(referralCode);
+            if (!referrerUser) return res.status(400).send('Referral link is invalid');
+            if (sanitizeEmail(referrerUser.email) === email) {
+                return res.status(400).send('You cannot use your own referral link');
+            }
+        }
+        const createdUser = await createUser(name, email, password, {
+            referredByUserId: referrerUser?.id || null,
+            referredByCode: referrerUser?.referralCode || referrerUser?.referral_code || '',
+            signupIp,
+            signupDeviceFingerprint,
+            signupBrowserFingerprint
         });
-        const created = await findUser(email);
-        console.log(`[REFERRAL] signup saved email=${email} referred_by=${created?.referred_by ?? 'null'}`);
+        if (referrerUser && createdUser) {
+            await createReferralRecord({
+                referrerUser,
+                referredUser: createdUser,
+                signupIp,
+                signupDeviceFingerprint,
+                signupBrowserFingerprint
+            });
+        }
         res.json({ success: true });
     } catch (err) {
         res.status(500).send(formatSafeError(err));
@@ -7178,23 +7301,72 @@ app.post('/api/login', async (req, res) => {
     try {
         const email = sanitizeEmail(req.body.email);
         const password = req.body.password;
-        if (!validateEmail(email)) return res.status(400).send('Valid email is required');
-        if (typeof password !== 'string' || !password) return res.status(400).send('Password is required');
+        console.log('[login-debug]', JSON.stringify({
+            stage: 'received',
+            email,
+            passwordReceived: typeof password === 'string' && password.length > 0
+        }));
+        if (!validateEmail(email)) {
+            console.log('[login-debug]', JSON.stringify({
+                stage: 'reject',
+                reason: 'invalid_email',
+                email
+            }));
+            return res.status(400).json({ success: false, message: 'Valid email is required' });
+        }
+        if (typeof password !== 'string' || !password) {
+            console.log('[login-debug]', JSON.stringify({
+                stage: 'reject',
+                reason: 'missing_password',
+                email
+            }));
+            return res.status(400).json({ success: false, message: 'Password is required' });
+        }
         const user = await findUser(email);
+        console.log('[login-debug]', JSON.stringify({
+            stage: 'user_lookup',
+            email,
+            userFound: Boolean(user),
+            matchedUser: user ? { id: user.id, email: user.email } : null
+        }));
         if (!user) {
-            return res.status(401).send('Invalid credentials');
+            console.log('[login-debug]', JSON.stringify({
+                stage: 'reject',
+                reason: 'user_not_found',
+                email
+            }));
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
         if (!user.is_active) {
-            return res.status(401).send('Account blocked');
+            console.log('[login-debug]', JSON.stringify({
+                stage: 'reject',
+                reason: 'account_blocked',
+                email,
+                matchedUser: { id: user.id, email: user.email }
+            }));
+            return res.status(401).json({ success: false, message: 'Account blocked' });
         }
         const passwordCheck = await verifyPassword(password, user.password);
+        console.log('[login-debug]', JSON.stringify({
+            stage: 'password_compare',
+            email,
+            matchedUser: { id: user.id, email: user.email },
+            passwordCompare: Boolean(passwordCheck.valid)
+        }));
         if (!passwordCheck.valid) {
             const newAttempts = Number(user.login_attempts || 0) + 1;
             await updateUserLoginAttempts(user.id, newAttempts);
             if (newAttempts >= 5) {
                 await queryRun('UPDATE users SET is_active = FALSE WHERE id = $1', [user.id]);
             }
-            return res.status(401).send('Invalid credentials');
+            console.log('[login-debug]', JSON.stringify({
+                stage: 'reject',
+                reason: 'invalid_password',
+                email,
+                matchedUser: { id: user.id, email: user.email },
+                loginAttempts: newAttempts
+            }));
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
         if (passwordCheck.needsUpgrade) {
             const upgradedHash = await hashPassword(password);
@@ -7204,21 +7376,94 @@ app.post('/api/login', async (req, res) => {
         await updateUserLastLogin(user.id);
         req.session.regenerate((regenErr) => {
             if (regenErr) {
+                console.log('[login-debug]', JSON.stringify({
+                    stage: 'reject',
+                    reason: 'session_regenerate_failed',
+                    email,
+                    matchedUser: { id: user.id, email: user.email }
+                }));
                 console.error('Session regenerate error:', regenErr);
-                return res.status(500).send('Login failed');
+                return res.status(500).json({ success: false, message: 'Login failed' });
             }
             req.session.userId = user.id;
             req.session.save((saveErr) => {
+                console.log('[login-debug]', JSON.stringify({
+                    stage: 'session_save',
+                    email,
+                    matchedUser: { id: user.id, email: user.email },
+                    sessionSaved: !saveErr
+                }));
                 if (saveErr) {
+                    console.log('[login-debug]', JSON.stringify({
+                        stage: 'reject',
+                        reason: 'session_save_failed',
+                        email,
+                        matchedUser: { id: user.id, email: user.email }
+                    }));
                     console.error('Session save error:', saveErr);
-                    return res.status(500).send('Login failed');
+                    return res.status(500).json({ success: false, message: 'Login failed' });
                 }
-                return res.json({ success: true });
+                console.log('[login-debug]', JSON.stringify({
+                    stage: 'success',
+                    email,
+                    matchedUser: { id: user.id, email: user.email }
+                }));
+                return res.json({ success: true, message: 'Login successful' });
             });
         });
     } catch (err) {
+        console.log('[login-debug]', JSON.stringify({
+            stage: 'reject',
+            reason: 'route_exception',
+            email: sanitizeEmail(req.body?.email),
+            passwordReceived: typeof req.body?.password === 'string' && req.body.password.length > 0
+        }));
         console.error('Login route error:', err);
-        res.status(500).send(formatSafeError(err));
+        res.status(500).json({ success: false, message: formatSafeError(err) });
+    }
+});
+
+app.post('/api/login/unblock', async (req, res) => {
+    try {
+        const email = sanitizeEmail(req.body.email);
+        if (!validateEmail(email)) {
+            return res.status(400).json({ success: false, message: 'Valid email is required' });
+        }
+        const user = await findUser(email);
+        console.log('[login-unblock-debug]', JSON.stringify({
+            stage: 'lookup',
+            email,
+            userFound: Boolean(user),
+            matchedUser: user ? { id: user.id, email: user.email } : null
+        }));
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        await clearUserLoginBlockState(user.id);
+        const clearedUser = await findUser(email);
+        console.log('[login-unblock-debug]', JSON.stringify({
+            stage: 'cleared',
+            email,
+            matchedUser: clearedUser ? {
+                id: clearedUser.id,
+                email: clearedUser.email,
+                is_active: clearedUser.is_active,
+                login_attempts: clearedUser.login_attempts
+            } : null
+        }));
+        return res.json({
+            success: true,
+            message: 'Login block cleared',
+            user: clearedUser ? {
+                id: clearedUser.id,
+                email: clearedUser.email,
+                is_active: clearedUser.is_active,
+                login_attempts: clearedUser.login_attempts
+            } : null
+        });
+    } catch (err) {
+        console.error('Login unblock error:', err);
+        return res.status(500).json({ success: false, message: formatSafeError(err) });
     }
 });
 
@@ -7260,6 +7505,27 @@ app.get('/api/me', ensureAuth, async (req, res) => {
         });
     } catch {
         res.status(500).send('Server error');
+    }
+});
+
+app.get('/api/referral-program', ensureAuth, async (req, res) => {
+    try {
+        const user = await findUserById(req.session.userId);
+        if (!user) return res.status(401).send('User not found');
+        const snapshot = {
+            ip: getRequestClientIp(req),
+            deviceFingerprint: getRequestDeviceFingerprint(req),
+            browserFingerprint: getRequestBrowserFingerprint(req)
+        };
+        await updateReferralSnapshot(user.id, snapshot);
+        res.json({
+            referralCode: user.referralCode,
+            referralLink: buildReferralLink(req, user.referralCode),
+            minDeposit: REFERRAL_MIN_DEPOSIT_PKR,
+            bonusAmount: REFERRAL_BONUS_PKR
+        });
+    } catch (err) {
+        res.status(500).send(formatSafeError(err, 'Could not load referral program'));
     }
 });
 
@@ -7651,10 +7917,14 @@ app.post('/api/request-payment', ensureAuth, upload.single('screenshot'), async 
         if (!user) return res.status(401).send('User not found');
         const transaction_id = typeof req.body.transaction_id === 'string' ? req.body.transaction_id.trim() : '';
         const screenshot = req.file ? req.file.filename : null;
+        const proofHash = await hashUploadedFile(req.file?.path || '');
+        const requestIp = getRequestClientIp(req);
+        const deviceFingerprint = getRequestDeviceFingerprint(req);
+        const browserFingerprint = getRequestBrowserFingerprint(req);
         if (!screenshot && !transaction_id) return res.status(400).send('Screenshot or transaction ID is required');
         await queryRun(
-            'INSERT INTO payment_requests (user_id, user_email, amount, transaction_id, screenshot, status) VALUES ($1, $2, $3, $4, $5, $6)',
-            [req.session.userId, user.email, amount, transaction_id || null, screenshot, 'pending']
+            'INSERT INTO payment_requests (user_id, user_email, amount, transaction_id, screenshot, status, request_ip, device_fingerprint, browser_fingerprint, proof_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+            [req.session.userId, user.email, amount, transaction_id || null, screenshot, 'pending', requestIp || null, deviceFingerprint || null, browserFingerprint || null, proofHash || null]
         );
         paymentRateLimiter[req.session.userId] = Date.now();
         res.json({ success: true });
@@ -7677,10 +7947,14 @@ app.post('/api/add-funds', ensureAuth, upload.single('screenshot'), async (req, 
         if (!user) return res.status(401).send('User not found');
         const transaction_id = typeof req.body.transaction_id === 'string' ? req.body.transaction_id.trim() : '';
         const screenshot = req.file ? req.file.filename : null;
+        const proofHash = await hashUploadedFile(req.file?.path || '');
+        const requestIp = getRequestClientIp(req);
+        const deviceFingerprint = getRequestDeviceFingerprint(req);
+        const browserFingerprint = getRequestBrowserFingerprint(req);
         if (!screenshot && !transaction_id) return res.status(400).send('Screenshot or transaction ID is required');
         await queryRun(
-            'INSERT INTO payment_requests (user_id, user_email, amount, transaction_id, screenshot, status) VALUES ($1, $2, $3, $4, $5, $6)',
-            [req.session.userId, user.email, amount, transaction_id || null, screenshot, 'pending']
+            'INSERT INTO payment_requests (user_id, user_email, amount, transaction_id, screenshot, status, request_ip, device_fingerprint, browser_fingerprint, proof_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+            [req.session.userId, user.email, amount, transaction_id || null, screenshot, 'pending', requestIp || null, deviceFingerprint || null, browserFingerprint || null, proofHash || null]
         );
         paymentRateLimiter[req.session.userId] = Date.now();
         res.json({ success: true });
@@ -7724,18 +7998,19 @@ app.post('/api/admin/payment-requests/:id/approve', ensureAdmin, async (req, res
         const user = userRes.rows[0];
         if (!user) throw new Error('User not found');
         await client.query('UPDATE users SET balance = COALESCE(balance, 0) + $1 WHERE id = $2', [Number(paymentRequest.amount || 0), paymentRequest.user_id]);
-        await client.query(
-            'INSERT INTO transactions (user_id, user_email, amount, type, status, description, transaction_id, screenshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-            [paymentRequest.user_id, paymentRequest.user_email, paymentRequest.amount, 'deposit', 'approved', `Approved payment request #${paymentRequest.id}`, paymentRequest.transaction_id, null]
+        const approvedTransactionRes = await client.query(
+            'INSERT INTO transactions (user_id, user_email, amount, type, status, description, transaction_id, screenshot, request_ip, device_fingerprint, browser_fingerprint, proof_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id',
+            [paymentRequest.user_id, paymentRequest.user_email, paymentRequest.amount, 'deposit', 'approved', `Approved payment request #${paymentRequest.id}`, paymentRequest.transaction_id, null, paymentRequest.request_ip || null, paymentRequest.device_fingerprint || null, paymentRequest.browser_fingerprint || null, paymentRequest.proof_hash || null]
         );
-        await client.query('UPDATE payment_requests SET status = $1, screenshot = NULL WHERE id = $2', ['approved', paymentRequest.id]);
-        const referralResult = await applyReferralBonusForDeposit(client, {
-            referredUserId: paymentRequest.user_id,
-            depositAmount: Number(paymentRequest.amount || 0),
-            paymentAccount: paymentRequest.transaction_id,
-            sourceIp: getRequestIp(req)
+        await applyReferralBonusForApprovedDeposit(client, {
+            userId: paymentRequest.user_id,
+            amount: paymentRequest.amount,
+            transactionId: paymentRequest.transaction_id,
+            proofHash: paymentRequest.proof_hash,
+            paymentRequestId: paymentRequest.id,
+            transactionRecordId: approvedTransactionRes.rows[0]?.id || null
         });
-        console.log(`[REFERRAL] deposit approval route=payment_request requestId=${paymentRequest.id} result=${referralResult.applied ? 'credited' : `skipped:${referralResult.reason}`}`);
+        await client.query('UPDATE payment_requests SET status = $1, screenshot = NULL WHERE id = $2', ['approved', paymentRequest.id]);
         await client.query('COMMIT');
         await removeUploadedFile(screenshotToDelete);
         res.json({ success: true });
@@ -7744,26 +8019,6 @@ app.post('/api/admin/payment-requests/:id/approve', ensureAdmin, async (req, res
         res.status(400).send(formatSafeError(err, 'Payment request approval failed'));
     } finally {
         client.release();
-    }
-});
-
-app.get('/api/referral/me', ensureAuth, async (req, res) => {
-    try {
-        const referral = await getReferralOverviewByUser(req.session.userId);
-        if (!referral) return res.status(404).send('User not found');
-        res.json(referral);
-    } catch (err) {
-        res.status(500).send(formatSafeError(err, 'Referral data unavailable'));
-    }
-});
-
-app.get('/api/admin/referrals', ensureAdmin, async (req, res) => {
-    try {
-        await ensureReferralSchema();
-        const data = await getAdminReferralData();
-        res.json(data);
-    } catch (err) {
-        res.status(500).send(formatSafeError(err, 'Referral admin data unavailable'));
     }
 });
 
