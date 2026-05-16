@@ -6636,7 +6636,7 @@ function sanitizeCountryNameFromServiceFile(value, serviceLabel = '') {
     return cleaned;
 }
 
-function buildCountryReferenceLookup(catalog) {
+function buildCountryReferenceLookup(catalog, additionalCountryArrays = []) {
     const byName = new Map();
     const addCountryReference = (country) => {
         const countryId = Number(country?.countryId);
@@ -6661,6 +6661,11 @@ function buildCountryReferenceLookup(catalog) {
 
     Object.values(catalog).forEach((serviceConfig) => {
         const countries = Array.isArray(serviceConfig?.countries) ? serviceConfig.countries : [];
+        countries.forEach(addCountryReference);
+    });
+
+    (Array.isArray(additionalCountryArrays) ? additionalCountryArrays : []).forEach((countries) => {
+        if (!Array.isArray(countries)) return;
         countries.forEach(addCountryReference);
     });
 
@@ -6772,7 +6777,7 @@ function buildExtraServiceCountryArraysFromFiles(catalog) {
         return arraysByServiceType;
     }
 
-    const lookup = buildCountryReferenceLookup(catalog);
+    const lookup = buildCountryReferenceLookup(catalog, Object.values(extraServiceCountryArraysByServiceType));
     const bestCandidatesByServiceType = new Map();
     extraServiceFiles.forEach(({ fileName, serviceLabel, serviceType }) => {
         try {
@@ -6829,16 +6834,22 @@ function extendServiceCatalogWithExtraServices(catalog) {
     }
 
     const extraServiceFiles = getExtraServiceFileDescriptors();
-    const extraServiceFileLabelsByServiceType = new Map(extraServiceFiles.map((entry) => [entry.serviceType, entry.serviceLabel]));
+    const extraServiceFileLabelsByServiceType = new Map();
+    extraServiceFiles.forEach((entry) => {
+        if (!entry?.serviceType) return;
+        extraServiceFileLabelsByServiceType.set(entry.serviceType, entry.serviceLabel);
+        if (!extraServicesByServiceType.has(entry.serviceType)) {
+            extraServicesByServiceType.set(entry.serviceType, {
+                code: null,
+                label: entry.serviceLabel,
+                serviceType: entry.serviceType
+            });
+        }
+    });
     const extraCountryArraysByServiceType = buildExtraServiceCountryArraysFromFiles(catalog);
-    const candidateServiceTypes = new Set([
-        ...extraServicesByServiceType.keys(),
-        ...extraServiceFileLabelsByServiceType.keys()
-    ]);
-    candidateServiceTypes.forEach((serviceType) => {
+    extraServicesByServiceType.forEach((extraService, serviceType) => {
         const countries = extraCountryArraysByServiceType[serviceType];
         if (!Array.isArray(countries) || !countries.length || catalog[serviceType]) return;
-        const extraService = extraServicesByServiceType.get(serviceType) || null;
         const displayLabel = String(extraService?.label || extraServiceFileLabelsByServiceType.get(serviceType) || serviceType).trim();
         const preserveCountryOrder = extraServiceFileLabelsByServiceType.has(serviceType);
         catalog[serviceType] = {
