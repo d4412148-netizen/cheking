@@ -6587,6 +6587,26 @@ function parseExtraServicesFromCatalogText(rawText, catalog) {
 
 const EXTRA_SERVICE_COUNTRY_FILES_DIR = path.join(__dirname, 'public', 'Application Adding');
 const WHATSAPP_COUNTRY_FILE_PATH = path.join(__dirname, 'public', 'whatsapp.txt');
+const COUNTRY_CODE_NAME_ALIASES = {
+    usa: ['united states', 'united states of america'],
+    'usa virtual': ['usa', 'united states', 'united states of america'],
+    'united kingdom': ['uk'],
+    uk: ['united kingdom'],
+    'saudi arabia': ['saudi'],
+    saudi: ['saudi arabia'],
+    'ivory coast': ['cote d ivoire'],
+    'cote d ivoire': ['ivory coast'],
+    'democratic republic of the congo': ['dr congo', 'congo dem republic'],
+    'dr congo': ['democratic republic of the congo', 'congo dem republic'],
+    'congo dem republic': ['democratic republic of the congo', 'dr congo'],
+    macedonia: ['north macedonia'],
+    'north macedonia': ['macedonia'],
+    'united arab emirates': ['uae'],
+    uae: ['united arab emirates'],
+    laos: ['lao peoples', 'lao people s', 'lao peoples democratic republic', 'lao people s democratic republic'],
+    vietnam: ['viet nam'],
+    argentina: ['argentinas']
+};
 const EXTRA_SERVICE_COUNTRY_NAME_ALIASES = {
     'united states': 'usa',
     'united states of america': 'usa',
