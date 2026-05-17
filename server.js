@@ -6826,6 +6826,10 @@ const serviceCatalog = {
 
 const BUILT_IN_SERVICE_TYPES = new Set(Object.keys(serviceCatalog));
 
+const EXTRA_SERVICE_TYPE_ALIASES = {
+    linkdlin: 'linkedin'
+};
+
 function normalizeServiceLookup(value) {
     return String(value || '')
         .trim()
@@ -6838,7 +6842,7 @@ function normalizeServiceLookup(value) {
 
 function createServiceTypeFromLabel(label, code = '') {
     const normalizedLabel = normalizeServiceLookup(label).replace(/\s+/g, '');
-    if (normalizedLabel) return normalizedLabel;
+    if (normalizedLabel) return EXTRA_SERVICE_TYPE_ALIASES[normalizedLabel] || normalizedLabel;
     return String(code || '')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '')
@@ -6886,10 +6890,51 @@ function parseExtraServicesFromCatalogText(rawText, catalog) {
     return extras;
 }
 
+function parseExtraServicesFromCodeTableText(rawText, catalog) {
+    const lines = String(rawText || '')
+        .split(/\r?\n/g)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const seenLabels = new Set(Object.values(catalog).map((serviceConfig) => normalizeServiceLookup(getServiceCatalogLabel(serviceConfig))).filter(Boolean));
+    const seenServiceTypes = new Set(Object.keys(catalog));
+    const extras = [];
+
+    lines.forEach((line) => {
+        const tabParts = line.split(/\t+/).map((part) => part.trim()).filter(Boolean);
+        const parts = tabParts.length >= 2
+            ? [tabParts[0], tabParts[tabParts.length - 1]]
+            : (() => {
+                const match = line.match(/^(.*?)\s+([A-Za-z0-9_]+)$/);
+                return match ? [match[1].trim(), match[2].trim()] : [];
+            })();
+        const [label, code] = parts;
+        if (!label || !code) return;
+
+        const looksLikeCode = !/\s/.test(code) && code.length <= 12;
+        if (!looksLikeCode) return;
+
+        const normalizedLabel = normalizeServiceLookup(label);
+        const serviceType = createServiceTypeFromLabel(label, code);
+        const hasDuplicate = !normalizedLabel || !serviceType || seenLabels.has(normalizedLabel) || seenServiceTypes.has(serviceType);
+        if (hasDuplicate) return;
+
+        seenLabels.add(normalizedLabel);
+        seenServiceTypes.add(serviceType);
+        extras.push({ code, label, serviceType });
+    });
+
+    return extras;
+}
+
 const EXTRA_SERVICE_COUNTRY_FILES_DIRS = [
     path.join(__dirname, 'public', 'Application Adding'),
     path.join(__dirname, 'public', 'New Services Lists')
 ];
+const EXTRA_SERVICE_CODE_FILE_PATHS = [
+    path.join(__dirname, 'public', 'All Social Media Platform.txt'),
+    path.join(__dirname, 'public', 'New Services Lists', 'All Services Codes.txt')
+];
+const EXTRA_SERVICE_COUNTRY_FILE_IGNORE_NAMES = new Set(['all services codes.txt']);
 const WHATSAPP_COUNTRY_FILE_PATH = path.join(__dirname, 'public', 'whatsapp.txt');
 const COUNTRY_CODE_NAME_ALIASES = {
     usa: ['united states', 'united states of america'],
@@ -7112,6 +7157,7 @@ function getExtraServiceFileDescriptors() {
                 .filter((fileName) => /\.txt$/i.test(fileName))
                 .sort((left, right) => left.localeCompare(right))
                 .forEach((fileName) => {
+                    if (EXTRA_SERVICE_COUNTRY_FILE_IGNORE_NAMES.has(String(fileName || '').trim().toLowerCase())) return;
                     const serviceLabel = fileName.replace(/\.txt$/i, '').trim();
                     const serviceType = createServiceTypeFromLabel(serviceLabel);
                     if (!serviceType) return;
@@ -7135,15 +7181,18 @@ function getExtraServiceFileDescriptors() {
 
 function extendServiceCatalogWithExtraServices(catalog) {
     const extraServicesByServiceType = new Map();
-    const catalogFilePath = path.join(__dirname, 'public', 'All Social Media Platform.txt');
-    try {
-        const rawText = fs.readFileSync(catalogFilePath, 'utf8');
-        const extraServices = parseExtraServicesFromCatalogText(rawText, catalog);
-        extraServices.forEach((service) => {
-            extraServicesByServiceType.set(service.serviceType, service);
-        });
-    } catch {
-    }
+    EXTRA_SERVICE_CODE_FILE_PATHS.forEach((filePath, index) => {
+        try {
+            const rawText = fs.readFileSync(filePath, 'utf8');
+            const extraServices = index === 0
+                ? parseExtraServicesFromCatalogText(rawText, catalog)
+                : parseExtraServicesFromCodeTableText(rawText, catalog);
+            extraServices.forEach((service) => {
+                extraServicesByServiceType.set(service.serviceType, service);
+            });
+        } catch {
+        }
+    });
 
     const extraServiceFiles = getExtraServiceFileDescriptors();
     const extraServiceFileLabelsByServiceType = new Map();
