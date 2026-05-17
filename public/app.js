@@ -436,9 +436,13 @@ function normalizeServiceLookup(value) {
         .trim();
 }
 
+const EXTRA_SERVICE_TYPE_ALIASES = {
+    linkdlin: 'linkedin'
+};
+
 function createServiceTypeFromLabel(label, code = '') {
     const normalizedLabel = normalizeServiceLookup(label).replace(/\s+/g, '');
-    if (normalizedLabel) return normalizedLabel;
+    if (normalizedLabel) return EXTRA_SERVICE_TYPE_ALIASES[normalizedLabel] || normalizedLabel;
     return String(code || '')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '')
@@ -574,6 +578,43 @@ function parseExtraServicesFromText(rawText) {
     return extras.sort((left, right) => String(left.label || '').localeCompare(String(right.label || '')));
 }
 
+function parseExtraServicesFromCodeTableText(rawText) {
+    const lines = String(rawText || '')
+        .split(/\r?\n/g)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const seenLabels = new Set(BUILT_IN_SERVICE_ORDER.map((serviceType) => normalizeServiceLookup(getServiceMeta(serviceType).label)));
+    const seenServiceTypes = new Set(BUILT_IN_SERVICE_ORDER);
+    const extras = [];
+    lines.forEach((line) => {
+        const tabParts = line.split(/\t+/).map((part) => part.trim()).filter(Boolean);
+        const parts = tabParts.length >= 2
+            ? [tabParts[0], tabParts[tabParts.length - 1]]
+            : (() => {
+                const match = line.match(/^(.*?)\s+([A-Za-z0-9_]+)$/);
+                return match ? [match[1].trim(), match[2].trim()] : [];
+            })();
+        const [label, code] = parts;
+        if (!label || !code) return;
+        const looksLikeCode = !/\s/.test(code) && code.length <= 12;
+        if (!looksLikeCode) return;
+        const normalizedLabel = normalizeServiceLookup(label);
+        const serviceType = createServiceTypeFromLabel(label, code);
+        if (!normalizedLabel || !serviceType || seenLabels.has(normalizedLabel) || seenServiceTypes.has(serviceType)) return;
+        seenLabels.add(normalizedLabel);
+        seenServiceTypes.add(serviceType);
+        createGeneratedServiceMeta(serviceType, label, { comingSoon: false, serviceCode: code });
+        extras.push({
+            serviceType,
+            label,
+            isBuiltIn: false,
+            comingSoon: false,
+            canOrder: true
+        });
+    });
+    return extras.sort((left, right) => String(left.label || '').localeCompare(String(right.label || '')));
+}
+
 function renderServiceGrid() {
     const grid = qs('service-grid');
     if (!grid) return;
@@ -609,10 +650,18 @@ async function loadAvailableServices() {
     }
     let fallbackServices = [];
     try {
-        const response = await fetch('/All Social Media Platform.txt', { credentials: 'include' });
-        if (!response.ok) throw new Error('Could not load service catalog list');
-        const rawText = await response.text();
-        fallbackServices = [...getDefaultServiceCatalog(), ...parseExtraServicesFromText(rawText)];
+        const [legacyResponse, codeTableResponse] = await Promise.all([
+            fetch('/All Social Media Platform.txt', { credentials: 'include' }),
+            fetch('/New Services Lists/All Services Codes.txt', { credentials: 'include' })
+        ]);
+        const extraServices = [];
+        if (legacyResponse.ok) {
+            extraServices.push(...parseExtraServicesFromText(await legacyResponse.text()));
+        }
+        if (codeTableResponse.ok) {
+            extraServices.push(...parseExtraServicesFromCodeTableText(await codeTableResponse.text()));
+        }
+        fallbackServices = [...getDefaultServiceCatalog(), ...extraServices];
     } catch {
     }
     const mergedServices = mergeServiceCatalogEntries(
