@@ -6930,11 +6930,14 @@ const EXTRA_SERVICE_COUNTRY_FILES_DIRS = [
     path.join(__dirname, 'public', 'Application Adding'),
     path.join(__dirname, 'public', 'New Services Lists')
 ];
+const EXTRA_SERVICE_STRUCTURED_SOURCE_FILE_PATHS = [
+    path.join(__dirname, 'public', 'New Services Lists', 'Add my new services.txt')
+];
 const EXTRA_SERVICE_CODE_FILE_PATHS = [
     path.join(__dirname, 'public', 'All Social Media Platform.txt'),
     path.join(__dirname, 'public', 'New Services Lists', 'All Services Codes.txt')
 ];
-const EXTRA_SERVICE_COUNTRY_FILE_IGNORE_NAMES = new Set(['all services codes.txt']);
+const EXTRA_SERVICE_COUNTRY_FILE_IGNORE_NAMES = new Set(['all services codes.txt', 'add my new services.txt']);
 const WHATSAPP_COUNTRY_FILE_PATH = path.join(__dirname, 'public', 'whatsapp.txt');
 const COUNTRY_CODE_NAME_ALIASES = {
     usa: ['united states', 'united states of america'],
@@ -7094,6 +7097,63 @@ function parseCountriesFromServiceText(rawText, lookup, serviceLabel = '') {
     };
 }
 
+function parseStructuredExtraServiceBlocks(rawText) {
+    const blocks = [];
+    const blockPattern = /---\s+(.*?)\s+\(serviceCode:\s*'([^']+)'\)\s+---\s*const\s+[A-Za-z0-9_]+Countries\s*=\s*\[([\s\S]*?)\];/g;
+    const sourceText = String(rawText || '');
+    let blockMatch;
+    while ((blockMatch = blockPattern.exec(sourceText)) !== null) {
+        const serviceLabel = String(blockMatch[1] || '').trim();
+        const serviceCode = String(blockMatch[2] || '').trim();
+        const serviceType = createServiceTypeFromLabel(serviceLabel, serviceCode);
+        if (!serviceLabel || !serviceCode || !serviceType) continue;
+        const countries = [];
+        const seenCountryIds = new Set();
+        const countryPattern = /\{\s*name:\s*'([^']*)',\s*code:\s*'([^']*)',\s*price:\s*([0-9]+(?:\.[0-9]+)?),\s*countryId:\s*([0-9]+),\s*flag:\s*'([^']*)'\s*\}/g;
+        let countryMatch;
+        while ((countryMatch = countryPattern.exec(blockMatch[3] || '')) !== null) {
+            const countryId = Number(countryMatch[4]);
+            const price = Number(countryMatch[3]);
+            if (!Number.isFinite(countryId) || countryId <= 0 || !Number.isFinite(price)) continue;
+            const countryIdKey = String(countryId);
+            if (seenCountryIds.has(countryIdKey)) continue;
+            seenCountryIds.add(countryIdKey);
+            countries.push({
+                name: String(countryMatch[1] || '').trim(),
+                code: String(countryMatch[2] || '').trim(),
+                price: Number(price.toFixed(2)),
+                countryId,
+                flag: String(countryMatch[5] || '').trim()
+            });
+        }
+        if (!countries.length) continue;
+        blocks.push({
+            serviceLabel,
+            serviceCode,
+            serviceType,
+            countries
+        });
+    }
+    return blocks;
+}
+
+function getStructuredExtraServiceDescriptors() {
+    const descriptors = [];
+    EXTRA_SERVICE_STRUCTURED_SOURCE_FILE_PATHS.forEach((filePath) => {
+        try {
+            const rawText = fs.readFileSync(filePath, 'utf8');
+            parseStructuredExtraServiceBlocks(rawText).forEach((entry) => {
+                descriptors.push({
+                    ...entry,
+                    filePath
+                });
+            });
+        } catch {
+        }
+    });
+    return descriptors;
+}
+
 function extendWhatsappCountriesFromFile(catalog) {
     const whatsappService = catalog?.whatsapp;
     const existingCountries = Array.isArray(whatsappService?.countries) ? whatsappService.countries : [];
@@ -7141,6 +7201,13 @@ const whatsappCountryStatus = {
 
 function buildExtraServiceCountryArraysFromFiles(catalog) {
     const arraysByServiceType = { ...extraServiceCountryArraysByServiceType };
+    getStructuredExtraServiceDescriptors().forEach(({ serviceType, countries }) => {
+        if (!serviceType || !Array.isArray(countries) || !countries.length) return;
+        const existingCountries = arraysByServiceType[serviceType];
+        if (!Array.isArray(existingCountries) || !existingCountries.length) {
+            arraysByServiceType[serviceType] = countries.map((country) => ({ ...country }));
+        }
+    });
     const extraServiceFiles = getExtraServiceFileDescriptors();
     if (!extraServiceFiles.length) {
         return arraysByServiceType;
@@ -7216,12 +7283,32 @@ function extendServiceCatalogWithExtraServices(catalog) {
         }
     });
 
+    const structuredExtraServices = getStructuredExtraServiceDescriptors();
+    structuredExtraServices.forEach(({ serviceLabel, serviceCode, serviceType }) => {
+        if (!serviceType) return;
+        const existingService = extraServicesByServiceType.get(serviceType);
+        if (!existingService) {
+            extraServicesByServiceType.set(serviceType, {
+                code: serviceCode || null,
+                label: serviceLabel,
+                serviceType
+            });
+            return;
+        }
+        if (!existingService.code && serviceCode) {
+            existingService.code = serviceCode;
+        }
+        if (!existingService.label && serviceLabel) {
+            existingService.label = serviceLabel;
+        }
+    });
+
     const extraServiceFiles = getExtraServiceFileDescriptors();
-    const extraServiceFileLabelsByServiceType = new Map();
+    const extraServiceSourceLabelsByServiceType = new Map();
     extraServiceFiles.forEach((entry) => {
         if (!entry?.serviceType) return;
-        if (!extraServiceFileLabelsByServiceType.has(entry.serviceType)) {
-            extraServiceFileLabelsByServiceType.set(entry.serviceType, entry.serviceLabel);
+        if (!extraServiceSourceLabelsByServiceType.has(entry.serviceType)) {
+            extraServiceSourceLabelsByServiceType.set(entry.serviceType, entry.serviceLabel);
         }
         if (!extraServicesByServiceType.has(entry.serviceType)) {
             extraServicesByServiceType.set(entry.serviceType, {
@@ -7231,12 +7318,18 @@ function extendServiceCatalogWithExtraServices(catalog) {
             });
         }
     });
+    structuredExtraServices.forEach((entry) => {
+        if (!entry?.serviceType || !entry?.serviceLabel) return;
+        if (!extraServiceSourceLabelsByServiceType.has(entry.serviceType)) {
+            extraServiceSourceLabelsByServiceType.set(entry.serviceType, entry.serviceLabel);
+        }
+    });
     const extraCountryArraysByServiceType = buildExtraServiceCountryArraysFromFiles(catalog);
     extraServicesByServiceType.forEach((extraService, serviceType) => {
         const countries = extraCountryArraysByServiceType[serviceType];
         if (!Array.isArray(countries) || !countries.length || catalog[serviceType]) return;
-        const displayLabel = String(extraService?.label || extraServiceFileLabelsByServiceType.get(serviceType) || serviceType).trim();
-        const preserveCountryOrder = extraServiceFileLabelsByServiceType.has(serviceType);
+        const displayLabel = String(extraService?.label || extraServiceSourceLabelsByServiceType.get(serviceType) || serviceType).trim();
+        const preserveCountryOrder = extraServiceSourceLabelsByServiceType.has(serviceType);
         catalog[serviceType] = {
             serviceType,
             serviceName: `${displayLabel} Number`,
