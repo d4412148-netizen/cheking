@@ -197,37 +197,36 @@
         #active-orders-list > div[class*='border-dashed'] .mx-auto{display:none!important}
         #active-orders-list > div[class*='border-dashed'] .text-lg{font-size:14px!important;line-height:1.4!important;color:#475569!important}
         #active-orders-list > div[class*='border-dashed'] p{margin-top:4px!important;font-size:12px!important;line-height:1.5!important;color:#64748b!important}
-        .admin-panel{position:relative;overflow:hidden;border:1px solid rgba(148,163,184,.22)!important;background:radial-gradient(circle at 0% 0%,rgba(34,197,94,.12),transparent 24%),radial-gradient(circle at 100% 0%,rgba(59,130,246,.1),transparent 22%),radial-gradient(circle at 50% 100%,rgba(168,85,247,.08),transparent 20%),linear-gradient(180deg,#08111f 0%,#0f172a 42%,#111827 100%)!important;box-shadow:0 16px 32px rgba(2,6,23,.18)!important}
-        .admin-panel *{font-weight:700!important}
-        .admin-panel,.admin-panel .admin-panel-header,.admin-panel .admin-section-group,.admin-panel .admin-data-card,.admin-panel .admin-accordion-trigger,.admin-panel .admin-accordion-indicator{color:#fff}
+        .admin-panel{position:relative;overflow:hidden;border:1px solid #e5e7eb!important;background:#ffffff!important;box-shadow:0 12px 28px rgba(15,23,42,.08)!important;color:#0f172a}
+        .admin-panel .text-white,.admin-panel .text-slate-100,.admin-panel .text-slate-200,.admin-panel .text-slate-300{color:#111827!important}
+        .admin-panel .text-slate-400,.admin-panel .text-slate-500{color:#6b7280!important}
         .admin-panel .admin-panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
-        .admin-panel .admin-panel-eyebrow{font-size:11px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:#93c5fd}
-        .admin-panel .admin-panel-title{margin-top:8px;font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;line-height:1.05;color:#f8fafc}
-        .admin-panel .admin-panel-copy{margin-top:8px;max-width:720px;font-size:14px;line-height:1.7;color:#cbd5e1}
-        .admin-panel .admin-refresh-button{display:inline-flex;min-height:42px;align-items:center;justify-content:center;border:1px solid rgba(148,163,184,.16);border-radius:999px;background:rgba(15,23,42,.72);padding:0 14px;font-size:12px;font-weight:800;letter-spacing:.05em;color:#e2e8f0;white-space:nowrap}
-        .admin-panel .admin-refresh-button:hover{border-color:rgba(74,222,128,.34);background:rgba(22,163,74,.14);transform:translateY(-1px)}
-        .admin-panel .admin-section-group{margin-top:14px;border:1px solid rgba(148,163,184,.14);border-radius:20px;background:rgba(15,23,42,.54);box-shadow:0 10px 20px rgba(2,6,23,.12)}
-        .admin-panel .admin-section-group:first-of-type{margin-top:18px}
-        .admin-panel .admin-accordion-trigger{display:flex;width:100%;align-items:center;justify-content:space-between;gap:16px;border:none;background:transparent;padding:16px 18px 14px;color:inherit;text-align:left;cursor:pointer}
+        .admin-panel .admin-panel-eyebrow{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#16a34a}
+        .admin-panel .admin-panel-title{margin-top:6px;font-size:24px;font-weight:800;line-height:1.15;color:#111827}
+        .admin-panel .admin-panel-copy{margin-top:6px;max-width:720px;font-size:14px;line-height:1.7;color:#6b7280}
+        .admin-panel .admin-refresh-button{display:inline-flex;min-height:42px;align-items:center;justify-content:center;border:1px solid #d1d5db;border-radius:999px;background:#ffffff;padding:0 14px;font-size:12px;font-weight:800;letter-spacing:.04em;color:#334155;white-space:nowrap}
+        .admin-panel .admin-refresh-button:hover{border-color:#86efac;background:#f0fdf4;color:#166534}
+        .admin-panel .admin-section-group{margin-top:12px;border:1px solid #e5e7eb;border-radius:18px;background:#f8fafc;box-shadow:none}
+        .admin-panel .admin-section-group:first-of-type{margin-top:16px}
+        .admin-panel .admin-accordion-trigger{display:flex;width:100%;align-items:center;justify-content:space-between;gap:16px;border:none;background:transparent;padding:14px 16px;color:inherit;text-align:left;cursor:pointer}
         .admin-panel .admin-accordion-copy{display:grid;gap:5px;min-width:0}
-        .admin-panel .admin-section-kicker{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#86efac}
-        .admin-panel .admin-section-title{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;line-height:1.2;color:#f8fafc}
-        .admin-panel .admin-section-copy{font-size:13px;line-height:1.7;color:#94a3b8}
-        .admin-panel .admin-accordion-indicator{display:inline-flex;height:34px;width:34px;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid rgba(148,163,184,.14);border-radius:12px;background:rgba(15,23,42,.72);color:#cbd5e1;transition:transform .18s ease,background-color .18s ease,border-color .18s ease}
-        .admin-panel .admin-accordion-item.is-open .admin-accordion-indicator{transform:rotate(180deg);background:rgba(22,163,74,.16);border-color:rgba(74,222,128,.28)}
-        .admin-panel .admin-accordion-panel{overflow:hidden;max-height:0;opacity:0;transform:translateY(-6px);transition:max-height .26s ease,opacity .18s ease,transform .18s ease;will-change:max-height}
-        .admin-panel .admin-accordion-item.is-open .admin-accordion-panel{opacity:1;transform:translateY(0)}
-        .admin-panel .admin-accordion-panel-inner{padding:0 16px 16px}
-        .admin-panel .admin-data-card{margin-top:12px;border-radius:18px;border:1px solid rgba(148,163,184,.14)!important;background:rgba(15,23,42,.72)!important;padding:14px;box-shadow:0 8px 18px rgba(2,6,23,.14)!important}
+        .admin-panel .admin-section-kicker{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#16a34a}
+        .admin-panel .admin-section-title{font-size:18px;font-weight:800;line-height:1.25;color:#111827}
+        .admin-panel .admin-section-copy{font-size:13px;line-height:1.6;color:#6b7280}
+        .admin-panel .admin-accordion-indicator{display:inline-flex;height:34px;width:34px;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid #d1d5db;border-radius:12px;background:#ffffff;color:#64748b;transition:transform .14s ease,background-color .14s ease,border-color .14s ease,color .14s ease}
+        .admin-panel .admin-accordion-item.is-open .admin-accordion-indicator{transform:rotate(180deg);background:#ecfdf5;border-color:#86efac;color:#166534}
+        .admin-panel .admin-accordion-panel{overflow:hidden;max-height:0;transition:max-height .18s ease}
+        .admin-panel .admin-accordion-panel-inner{padding:0 14px 14px}
+        .admin-panel .admin-data-card{margin-top:12px;border-radius:16px;border:1px solid #e5e7eb!important;background:#ffffff!important;padding:14px;box-shadow:none!important}
         .admin-panel .admin-data-card:first-child{margin-top:0}
-        .admin-panel .admin-search-shell{border-color:rgba(148,163,184,.16)!important;background:rgba(2,6,23,.62)!important}
-        .admin-panel .admin-search-input{color:#f8fafc!important}
-        .admin-panel .admin-search-input::placeholder{color:#64748b!important}
+        .admin-panel .admin-search-shell{border-color:#e5e7eb!important;background:#ffffff!important}
+        .admin-panel .admin-search-input{color:#111827!important}
+        .admin-panel .admin-search-input::placeholder{color:#94a3b8!important}
         .admin-panel .scroll-area{height:auto;max-height:min(52vh,390px);overflow-x:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-gutter:stable}
         .admin-panel .scroll-area::-webkit-scrollbar{height:8px;width:8px}
-        .admin-panel .scroll-area::-webkit-scrollbar-thumb{background:rgba(148,163,184,.32);border-radius:999px}
-        .admin-panel .scroll-area tbody tr{transition:background-color .12s ease}
-        .admin-panel .scroll-area tbody tr:hover{background:rgba(148,163,184,.05)}
+        .admin-panel .scroll-area::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+        .admin-panel .scroll-area tbody tr{transition:none}
+        .admin-panel .scroll-area tbody tr:hover{background:#f8fafc}
 
         .payment-success-title{max-width:420px;font-size:22px;font-weight:800;line-height:1.8;color:#111827}
         #payment-modal{align-items:flex-start!important;padding-top:68px;padding-bottom:16px}
@@ -288,14 +287,22 @@
         .history-top-nav-button{display:flex;width:100%;min-height:78px;flex-direction:column;align-items:flex-start;justify-content:center;gap:.35rem;border:1px solid #dbe5dc;border-radius:16px;background:#f8fbf8;padding:.8rem .85rem;font-size:13px;font-weight:800;letter-spacing:0;line-height:1.35;color:#0f172a;white-space:normal;text-align:left;cursor:pointer;box-shadow:0 10px 22px rgba(15,23,42,.06);transition:background-color .2s ease,border-color .2s ease,color .2s ease,box-shadow .2s ease}
         .history-top-nav-button:hover{color:#0f172a;background:#f1f5f9;border-color:#d7dee7}
         .history-top-nav-button.active{color:#166534;background:#ecfdf5;border-color:rgba(34,197,94,.26);box-shadow:0 0 0 1px rgba(34,197,94,.08) inset,0 10px 22px rgba(22,163,74,.08)}
-        .history-top-nav-button::after{display:block;font-size:12px;font-weight:700;line-height:1.45;color:#64748b;content:''}
-        #header-phone-history-action::after{content:'Active orders: 0'}
-        #header-payment-detail-action::after{content:'Paid: 0 PKR'}
+        .history-top-nav-button::after{display:block;font-size:12px;font-weight:700;line-height:1.45;color:#64748b;content:attr(data-meta)}
         .history-top-nav-meta{min-width:0;padding:0 .65rem;font-size:12px;font-weight:700;line-height:1.45;color:#64748b}
         .history-top-nav-divider{display:none}
-        #activation-filter-bar{display:none!important}
-        #header-payment-detail-action{display:none!important}
-        #activation-summary-line{display:none!important}
+        .number-history-search-shell{display:flex;align-items:center;gap:12px;border:1px solid #dbe5dc;border-radius:16px;background:#ffffff;padding:.85rem 1rem}
+        .number-history-search-input{width:100%;border:none;background:transparent;font-size:14px;color:#0f172a;outline:none}
+        .number-history-search-input::placeholder{color:#94a3b8}
+        .number-history-card{display:grid;gap:.85rem;border:1px solid #e2e8f0;border-radius:18px;background:#ffffff;padding:1rem;box-shadow:0 10px 24px rgba(15,23,42,.05)}
+        .number-history-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+        .number-history-card-service{display:flex;align-items:center;gap:10px;min-width:0}
+        .number-history-card-service-name{font-size:14px;font-weight:800;color:#0f172a}
+        .number-history-card-service-subtitle{margin-top:4px;font-size:12px;color:#64748b}
+        .number-history-card-grid{display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr))}
+        .number-history-card-field{display:grid;gap:4px;border-radius:14px;border:1px solid #e2e8f0;background:#f8fafc;padding:.75rem}
+        .number-history-card-field span{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#64748b}
+        .number-history-card-field strong{font-size:13px;font-weight:800;color:#0f172a;overflow-wrap:anywhere}
+        .number-history-card-code strong{font-size:16px;letter-spacing:.08em;color:#166534}
         .auth-switch-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;border-radius:999px;background:linear-gradient(145deg,#eef8f1 0%,#dcebdf 100%);padding:8px;box-shadow:inset 9px 9px 20px rgba(176,191,182,.22),inset -9px -9px 18px rgba(255,255,255,.92)}
         .auth-switch-button{border:none;border-radius:999px;padding:14px 16px;font-size:14px;font-weight:800;color:#2f6b45;background:transparent;cursor:pointer;transition:transform .24s ease,box-shadow .24s ease,background .24s ease,color .24s ease}
         .auth-switch-button:hover{transform:translateY(-1px);color:#166534}
@@ -415,7 +422,7 @@
         .floating-whatsapp-btn:hover{transform:translateY(-2px);background:#1fba57}
         .floating-whatsapp-btn img{height:20px;width:20px;display:block}
         @media (min-width:640px){.service-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.country-table-head{display:grid;grid-template-columns:48px minmax(0,1fr) 110px 110px;gap:.75rem;padding:.85rem 1rem;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:inherit}.country-table-row{grid-template-columns:48px minmax(0,1fr) 110px 110px}.payment-detail-row{flex-direction:row;align-items:center;justify-content:space-between}.payment-detail-main{min-width:0;flex:1}.payment-detail-actions{justify-content:flex-end}}
-        @media (max-width:640px){#payment-modal{padding:56px 10px 12px}.payment-modal-shell{width:100%;max-height:calc(100vh - 72px);border-radius:24px}.payment-modal-body{max-height:calc(100vh - 72px);padding:12px}.payment-brand-subtitle{max-width:none}.payment-number-group,.payment-upload-top{justify-content:flex-start;align-items:flex-start}.payment-step-grid{grid-template-columns:1fr}.payment-info-item,.payment-info-row{align-items:flex-start}.sms-order-head{flex-direction:column;align-items:flex-start}.sms-order-phone-cluster{justify-content:flex-start;width:100%}.sms-order-info-row{align-items:flex-start}.sms-order-live-box,.sms-order-otp-box{justify-content:flex-start;align-items:flex-start}.sms-order-otp-value{margin-left:0}.sms-order-foot{flex-direction:column;align-items:flex-start}.guest-access-card{flex-direction:column;align-items:flex-start;gap:10px}.balance-banner-panel{min-width:0;width:auto}.balance-banner-amount{font-size:20px}.processing-inline-row{grid-template-columns:1fr}#login-prompt{padding:10px 10px 14px!important;align-items:flex-start!important}.auth-modal-shell{width:min(100%,calc(100vw - 20px))!important;max-height:calc(100vh - 20px)!important;border-radius:22px!important;padding:14px!important}.modal-header{margin-bottom:12px!important}.modal-header h3{font-size:16px!important;line-height:1.25!important}.modal-header p{margin-top:4px!important;font-size:11px!important;line-height:1.45!important}.close-x{width:34px!important;height:34px!important;border-radius:12px!important;font-size:16px!important}.auth-switch-grid{gap:8px!important;border-radius:18px!important;padding:8px!important}.auth-switch-button{padding:10px 12px!important;font-size:13px!important;border-radius:14px!important}.wide-btn{margin-top:8px!important;padding:11px 12px!important;border-radius:14px!important}#login-form-wrap,#register-form-wrap{margin-top:12px!important}.rounded-\[24px\]{border-radius:18px!important}.border.border-slate-800\/80.bg-slate-950\/70.p-5{padding:12px!important}.text-xs.font-semibold.uppercase.tracking-\[0\.28em\].text-sky-300{font-size:10px!important;letter-spacing:.22em!important}.mt-3.text-2xl.font-semibold.text-white{margin-top:8px!important;font-size:18px!important;line-height:1.25!important}.mt-3.max-w-2xl.text-sm.leading-7.text-slate-300{margin-top:8px!important;font-size:12px!important;line-height:1.5!important}.space-y-4 > :not([hidden]) ~ :not([hidden]){margin-top:10px!important}.rounded-2xl.border.border-slate-800\/80.bg-slate-950\/70.px-4.py-3{padding:10px 12px!important}.rounded-2xl.border.border-slate-800\/80.bg-slate-950\/70.px-4.py-3 input{font-size:13px!important}.w-full.rounded-2xl.bg-emerald-600.px-4.py-3.text-sm.font-semibold.text-white.shadow-lg.shadow-emerald-500\/20.transition.hover\:bg-emerald-500,.w-full.rounded-2xl.border.border-slate-700.bg-white.px-4.py-3.text-sm.font-semibold.text-slate-900.transition.hover\:bg-slate-100,.w-full.rounded-2xl.bg-slate-900.px-4.py-3.text-sm.font-semibold.text-black.shadow-lg.shadow-slate-900\/15.transition.hover\:bg-slate-800{padding-top:10px!important;padding-bottom:10px!important;font-size:13px!important}.flex.items-center.justify-end{margin-top:2px!important}.flex.items-center.justify-end a{font-size:12px!important}.app-panel.p-4.sm\:p-5{padding:12px!important}.app-panel.p-4.sm\:p-5 h2{font-size:15px!important;line-height:1.3!important}.app-panel.p-4.sm\:p-5 p{margin-top:6px!important;font-size:12px!important;line-height:1.5!important}.history-header-button{min-height:38px!important;padding:0 14px!important;font-size:12px!important}.service-grid-shell{margin-top:10px!important}#terms-modal{padding:14px!important}.terms-modal-shell{width:min(360px,calc(100vw - 20px))!important;max-height:calc(100vh - 28px)!important;border-radius:20px!important}.terms-modal-card{max-height:calc(100vh - 44px)!important;padding:8px!important}.terms-chip{min-height:26px!important;padding:0 10px!important;font-size:10px!important}.terms-policy-body{padding:8px 10px 6px!important;font-size:10.5px!important;line-height:1.65!important}.terms-actions{padding-top:4px!important}.floating-whatsapp-btn{bottom:77px}}
+        @media (max-width:640px){#payment-modal{padding:56px 10px 12px}.payment-modal-shell{width:100%;max-height:calc(100vh - 72px);border-radius:24px}.payment-modal-body{max-height:calc(100vh - 72px);padding:12px}.payment-brand-subtitle{max-width:none}.payment-number-group,.payment-upload-top{justify-content:flex-start;align-items:flex-start}.guest-access-card{flex-direction:column;align-items:flex-start;gap:10px}.balance-banner-panel{min-width:0;width:auto}.balance-banner-amount{font-size:20px}.processing-inline-row{grid-template-columns:1fr}#login-prompt{padding:10px 10px 14px!important;align-items:flex-start!important}.auth-modal-shell{width:min(100%,calc(100vw - 20px))!important;max-height:calc(100vh - 20px)!important;border-radius:22px!important;padding:14px!important}.modal-header{margin-bottom:12px!important}.modal-header h3{font-size:16px!important;line-height:1.25!important}.modal-header p{margin-top:4px!important;font-size:11px!important;line-height:1.45!important}.close-x{width:34px!important;height:34px!important;border-radius:12px!important;font-size:16px!important}.auth-switch-grid{gap:8px!important;border-radius:18px!important;padding:8px!important}.auth-switch-button{padding:10px 12px!important;font-size:13px!important;border-radius:14px!important}.wide-btn{margin-top:8px!important;padding:11px 12px!important;border-radius:14px!important}#login-form-wrap,#register-form-wrap{margin-top:12px!important}.rounded-\[24px\]{border-radius:18px!important}.border.border-slate-800\/80.bg-slate-950\/70.p-5{padding:12px!important}.text-xs.font-semibold.uppercase.tracking-\[0\.28em\].text-sky-300{font-size:10px!important;letter-spacing:.22em!important}.mt-3.text-2xl.font-semibold.text-white{margin-top:8px!important;font-size:18px!important;line-height:1.25!important}.mt-3.max-w-2xl.text-sm.leading-7.text-slate-300{margin-top:8px!important;font-size:12px!important;line-height:1.5!important}.space-y-4 > :not([hidden]) ~ :not([hidden]){margin-top:10px!important}.rounded-2xl.border.border-slate-800\/80.bg-slate-950\/70.px-4.py-3{padding:10px 12px!important}.rounded-2xl.border.border-slate-800\/80.bg-slate-950\/70.px-4.py-3 input{font-size:13px!important}.w-full.rounded-2xl.bg-emerald-600.px-4.py-3.text-sm.font-semibold.text-white.shadow-lg.shadow-emerald-500\/20.transition.hover\:bg-emerald-500,.w-full.rounded-2xl.border.border-slate-700.bg-white.px-4.py-3.text-sm.font-semibold.text-slate-900.transition.hover\:bg-slate-100,.w-full.rounded-2xl.bg-slate-900.px-4.py-3.text-sm.font-semibold.text-black.shadow-lg.shadow-slate-900\/15.transition.hover\:bg-slate-800{padding-top:10px!important;padding-bottom:10px!important;font-size:13px!important}.flex.items-center.justify-end{margin-top:2px!important}.flex.items-center.justify-end a{font-size:12px!important}.app-panel.p-4.sm\:p-5{padding:12px!important}.app-panel.p-4.sm\:p-5 h2{font-size:15px!important;line-height:1.3!important}.app-panel.p-4.sm\:p-5 p{margin-top:6px!important;font-size:12px!important;line-height:1.5!important}.history-header-button{min-height:38px!important;padding:0 14px!important;font-size:12px!important}.service-grid-shell{margin-top:10px!important}#terms-modal{padding:14px!important}.terms-modal-shell{width:min(360px,calc(100vw - 20px))!important;max-height:calc(100vh - 28px)!important;border-radius:20px!important}.terms-modal-card{max-height:calc(100vh - 44px)!important;padding:8px!important}.terms-chip{min-height:26px!important;padding:0 10px!important;font-size:10px!important}.terms-policy-body{padding:8px 10px 6px!important;font-size:10.5px!important;line-height:1.65!important}.terms-actions{padding-top:4px!important}.floating-whatsapp-btn{bottom:77px}}
         @media (max-width:640px){#member-history-section{max-width:480px;margin-left:auto;margin-right:auto}.history-top-nav-button{min-height:46px;font-size:12px}.history-top-nav-meta{padding:0 .55rem;font-size:11px}}
         @media (max-width:380px){.history-top-nav{grid-template-columns:1fr}}
     </style>
@@ -853,15 +860,17 @@ Spam activity = Ban risk</div>
             <section id="member-history-section" class="app-panel hidden p-4 sm:p-5">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 id="history-section-title" class="text-base font-semibold text-white sm:text-lg">Active Orders</h2>
-                        <p id="history-section-copy" class="mt-1 text-xs leading-6 text-slate-400 sm:text-sm">Purchased numbers waiting for OTP appear here instantly. Completed orders stay below for easy review.</p>
+                        <h2 id="history-section-title" class="text-base font-semibold text-slate-900 sm:text-lg">Phone Number Activation</h2>
+                        <p id="history-section-copy" class="mt-1 text-xs leading-6 text-slate-500 sm:text-sm">Purchased numbers waiting for OTP appear here instantly, and all saved numbers remain available in history later.</p>
                     </div>
                 </div>
                 <div id="history-top-nav" class="history-top-nav hidden mt-4">
                     <div class="history-top-nav-row" role="group" aria-label="History navigation">
-                        <button id="header-phone-history-action" type="button" class="history-top-nav-button active" data-action="show-phone-history">Active Orders</button>
+                        <button id="header-phone-history-action" type="button" class="history-top-nav-button active" data-action="show-phone-history" data-meta="Live orders and recent completions">Phone Number Activation</button>
                         <span class="history-top-nav-divider" aria-hidden="true">|</span>
-                        <button id="header-payment-detail-action" type="button" class="history-top-nav-button" data-action="show-payment-history">Check Payment Details</button>
+                        <button id="header-number-history-action" type="button" class="history-top-nav-button" data-action="show-number-history" data-meta="Saved numbers and OTP codes">All Number History</button>
+                        <span class="history-top-nav-divider" aria-hidden="true">|</span>
+                        <button id="header-payment-detail-action" type="button" class="history-top-nav-button" data-action="show-payment-history" data-meta="Pending / Success / Cancel">Check Payment Details</button>
                     </div>
                 </div>
                 <div id="activation-filter-bar" class="mt-4 flex flex-wrap gap-2">
@@ -883,6 +892,22 @@ Spam activity = Ban risk</div>
                         <div class="mt-2 text-xs leading-6 text-slate-500">Read-only list of completed numbers with received OTP codes.</div>
                     </div>
                     <div id="completed-orders-list" class="activation-orders-shell mt-3 space-y-3"></div>
+                </div>
+                <div id="number-history-section" class="mt-4 hidden">
+                    <div class="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-500">All Number History</div>
+                                <div class="mt-2 text-xs leading-6 text-slate-500">Every purchased number, OTP code, and final status stays saved here even after complete, cancel, or expiry.</div>
+                            </div>
+                            <button type="button" data-action="show-phone-history" class="btn-soft">Back to Active Orders</button>
+                        </div>
+                        <div class="number-history-search-shell mt-4">
+                            <i class="fa-solid fa-magnifying-glass text-slate-500"></i>
+                            <input id="number-history-search" type="search" inputmode="search" placeholder="Search by service, country, number, code, or status" class="number-history-search-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+                        </div>
+                    </div>
+                    <div id="number-history-list" class="mt-4 space-y-2"></div>
                 </div>
                 <div id="payment-history-section" class="mt-4 hidden">
                     <div class="flex flex-wrap items-start justify-between gap-3 rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
@@ -956,18 +981,18 @@ Spam activity = Ban risk</div>
             <section id="admin-panel" class="app-panel admin-panel hidden p-4 sm:p-5">
                 <div class="admin-panel-header">
                     <div>
-                        <p class="admin-panel-eyebrow">Admin dashboard</p>
-                        <h3 class="admin-panel-title">Financial System</h3>
-                        <p class="admin-panel-copy">Track deposits, income, API cost, and real profit from a single clean overview.</p>
+                        <p class="admin-panel-eyebrow">Admin panel</p>
+                        <h3 class="admin-panel-title">Admin Dashboard</h3>
+                        <p class="admin-panel-copy">Use the light sections below to review finance, users, system activity, and order performance without extra visual clutter.</p>
                     </div>
                     <button type="button" class="admin-refresh-button" data-action="refresh-admin-panel">Refresh Data</button>
                 </div>
                 <div class="admin-section-group admin-accordion-item is-open" data-admin-accordion-item data-admin-accordion-id="overview">
                     <button type="button" class="admin-accordion-trigger" data-action="toggle-admin-accordion" data-admin-accordion-id="overview" aria-expanded="true" aria-controls="admin-accordion-panel-overview">
                         <span class="admin-accordion-copy">
-                            <span class="admin-section-kicker">1. Dashboard Overview</span>
-                            <span class="admin-section-title">Dashboard Overview</span>
-                            <span class="admin-section-copy">High-level stats and profit tracking so the panel is easier to scan at a glance.</span>
+                            <span class="admin-section-kicker">1. Financial Overview</span>
+                            <span class="admin-section-title">Financial Overview</span>
+                            <span class="admin-section-copy">Review total deposits, income, API cost, and profit with a clean summary and daily breakdown.</span>
                         </span>
                         <span class="admin-accordion-indicator" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                     </button>
@@ -975,15 +1000,15 @@ Spam activity = Ban risk</div>
                         <div class="admin-accordion-panel-inner">
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Overall Financial Stats</h4>
-                                    <p class="mt-1 text-sm text-slate-400">See overall and today deposits, income, API cost, and real profit in one summary table.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Overall Financial Stats</h4>
+                                    <p class="mt-1 text-sm text-slate-500">See overall and today deposits, income, API cost, and real profit in one summary table.</p>
                                 </div>
                                 <div id="admin-stats-list" class="scroll-area overflow-x-auto"></div>
                             </div>
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Daily Profit Details</h4>
-                                    <p class="mt-1 text-sm text-slate-400">Review date-wise completed-order profit totals while keeping the current profit overview intact.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Daily Profit Details</h4>
+                                    <p class="mt-1 text-sm text-slate-500">Review date-wise completed-order profit totals while keeping the current profit overview intact.</p>
                                 </div>
                                 <div id="admin-daily-profit-details" class="scroll-area overflow-x-auto"></div>
                             </div>
@@ -993,9 +1018,9 @@ Spam activity = Ban risk</div>
                 <div class="admin-section-group admin-accordion-item" data-admin-accordion-item data-admin-accordion-id="finance">
                     <button type="button" class="admin-accordion-trigger" data-action="toggle-admin-accordion" data-admin-accordion-id="finance" aria-expanded="false" aria-controls="admin-accordion-panel-finance">
                         <span class="admin-accordion-copy">
-                            <span class="admin-section-kicker">2. Finance</span>
-                            <span class="admin-section-title">Finance</span>
-                            <span class="admin-section-copy">Deposits, approvals, ledger tracking, and manual adjustment history grouped into one finance area.</span>
+                            <span class="admin-section-kicker">2. Payment Management</span>
+                            <span class="admin-section-title">Payment Management</span>
+                            <span class="admin-section-copy">Handle pending proofs, processed payment requests, and the finance ledger in one light section.</span>
                         </span>
                         <span class="admin-accordion-indicator" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                     </button>
@@ -1003,31 +1028,24 @@ Spam activity = Ban risk</div>
                         <div class="admin-accordion-panel-inner">
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Pending Payment Requests</h4>
-                                    <p class="mt-1 text-sm text-slate-400">Review screenshot proofs and approve or cancel pending add-money requests.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Pending Payment Requests</h4>
+                                    <p class="mt-1 text-sm text-slate-500">Review screenshot proofs and approve or cancel pending add-money requests.</p>
                                 </div>
                                 <div id="admin-payment-requests-list" class="scroll-area overflow-x-auto"></div>
                             </div>
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Processed Payment History</h4>
-                                    <p class="mt-1 text-sm text-slate-400">See approved and cancelled payment requests with proof links and status.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Processed Payment History</h4>
+                                    <p class="mt-1 text-sm text-slate-500">See approved and cancelled payment requests with proof links and status.</p>
                                 </div>
                                 <div id="admin-payment-history-list" class="scroll-area overflow-x-auto"></div>
                             </div>
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Financial Ledger</h4>
-                                    <p class="mt-1 text-sm text-slate-400">Approved deposits and order deductions for complete financial tracking.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Financial Ledger</h4>
+                                    <p class="mt-1 text-sm text-slate-500">Approved deposits and order deductions for complete financial tracking.</p>
                                 </div>
                                 <div id="admin-financial-ledger-list" class="scroll-area overflow-x-auto"></div>
-                            </div>
-                            <div class="admin-data-card">
-                                <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Manual Adjustment History</h4>
-                                    <p class="mt-1 text-sm text-slate-400">All admin balance adjustments with reasons and timestamps.</p>
-                                </div>
-                                <div id="admin-balance-adjustments-list" class="scroll-area overflow-x-auto"></div>
                             </div>
                         </div>
                     </div>
@@ -1035,9 +1053,9 @@ Spam activity = Ban risk</div>
                 <div class="admin-section-group admin-accordion-item" data-admin-accordion-item data-admin-accordion-id="users">
                     <button type="button" class="admin-accordion-trigger" data-action="toggle-admin-accordion" data-admin-accordion-id="users" aria-expanded="false" aria-controls="admin-accordion-panel-users">
                         <span class="admin-accordion-copy">
-                            <span class="admin-section-kicker">3. Users</span>
-                            <span class="admin-section-title">Users</span>
-                            <span class="admin-section-copy">User totals, spending, balance management, and selected-user history in one clear block.</span>
+                            <span class="admin-section-kicker">3. User Management</span>
+                            <span class="admin-section-title">User Management</span>
+                            <span class="admin-section-copy">Check totals, user spending, balances, and selected-user history in a simple layout.</span>
                         </span>
                         <span class="admin-accordion-indicator" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                     </button>
@@ -1045,22 +1063,22 @@ Spam activity = Ban risk</div>
                         <div class="admin-accordion-panel-inner">
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Total Users</h4>
-                                    <p class="mt-1 text-sm text-slate-400">See the full number of registered users in one quick card.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Total Users</h4>
+                                    <p class="mt-1 text-sm text-slate-500">See the full number of registered users in one quick card.</p>
                                 </div>
                                 <div id="admin-total-users-summary" class="scroll-area overflow-x-auto"></div>
                             </div>
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">User Spending</h4>
-                                    <p class="mt-1 text-sm text-slate-400">Track total completed-order spending and a user-wise breakdown in one place.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">User Spending</h4>
+                                    <p class="mt-1 text-sm text-slate-500">Track total completed-order spending and a user-wise breakdown in one place.</p>
                                 </div>
                                 <div id="admin-user-spending-list" class="scroll-area overflow-x-auto"></div>
                             </div>
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">User Balances &amp; Manual Adjustment</h4>
-                                    <p class="mt-1 text-sm text-slate-400">Adjust user balances with positive or negative values and keep a full audit trail.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">User Balances &amp; Manual Adjustment</h4>
+                                    <p class="mt-1 text-sm text-slate-500">Adjust user balances with positive or negative values and keep a full audit trail.</p>
                                     <div class="admin-search-shell mt-3 rounded-2xl border px-4 py-3">
                                         <label for="admin-users-search" class="sr-only">Search users by email</label>
                                         <div class="flex items-center gap-3">
@@ -1073,15 +1091,36 @@ Spam activity = Ban risk</div>
                             </div>
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Selected User Full History</h4>
-                                    <p class="mt-1 text-sm text-slate-400">Purchases, deposits, and manual adjustments for the selected user.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Selected User Full History</h4>
+                                    <p class="mt-1 text-sm text-slate-500">Purchases, deposits, and manual adjustments for the selected user.</p>
                                 </div>
                                 <div id="admin-user-history-list" class="scroll-area overflow-x-auto"></div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="admin-section-group admin-accordion-item" data-admin-accordion-item data-admin-accordion-id="system">
+                    <button type="button" class="admin-accordion-trigger" data-action="toggle-admin-accordion" data-admin-accordion-id="system" aria-expanded="false" aria-controls="admin-accordion-panel-system">
+                        <span class="admin-accordion-copy">
+                            <span class="admin-section-kicker">4. System Management</span>
+                            <span class="admin-section-title">System Management</span>
+                            <span class="admin-section-copy">Review manual balance changes and referral activity without mixing them into finance or user tables.</span>
+                        </span>
+                        <span class="admin-accordion-indicator" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                    </button>
+                    <div id="admin-accordion-panel-system" class="admin-accordion-panel" data-admin-accordion-panel>
+                        <div class="admin-accordion-panel-inner">
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Referral Program Tracking</h4>
-                                    <p class="mt-1 text-sm text-slate-400">See who referred whom, deposit amount, reward status, and fraud blocked attempts.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Manual Adjustment History</h4>
+                                    <p class="mt-1 text-sm text-slate-500">All admin balance adjustments with reasons and timestamps.</p>
+                                </div>
+                                <div id="admin-balance-adjustments-list" class="scroll-area overflow-x-auto"></div>
+                            </div>
+                            <div class="admin-data-card">
+                                <div class="mb-4">
+                                    <h4 class="text-lg font-semibold text-slate-900">Referral Program Tracking</h4>
+                                    <p class="mt-1 text-sm text-slate-500">See who referred whom, deposit amount, reward status, and fraud blocked attempts.</p>
                                 </div>
                                 <div id="admin-referrals-list" class="scroll-area overflow-x-auto"></div>
                             </div>
@@ -1091,9 +1130,9 @@ Spam activity = Ban risk</div>
                 <div class="admin-section-group admin-accordion-item" data-admin-accordion-item data-admin-accordion-id="orders">
                     <button type="button" class="admin-accordion-trigger" data-action="toggle-admin-accordion" data-admin-accordion-id="orders" aria-expanded="false" aria-controls="admin-accordion-panel-orders">
                         <span class="admin-accordion-copy">
-                            <span class="admin-section-kicker">4. Orders</span>
-                            <span class="admin-section-title">Orders</span>
-                            <span class="admin-section-copy">Live order business data grouped separately so admin can scan order performance quickly.</span>
+                            <span class="admin-section-kicker">5. Orders Breakdown</span>
+                            <span class="admin-section-title">Orders Breakdown</span>
+                            <span class="admin-section-copy">Scan order price, API cost, profit, and status in a single lightweight table.</span>
                         </span>
                         <span class="admin-accordion-indicator" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                     </button>
@@ -1101,8 +1140,8 @@ Spam activity = Ban risk</div>
                         <div class="admin-accordion-panel-inner">
                             <div class="admin-data-card">
                                 <div class="mb-4">
-                                    <h4 class="text-lg font-semibold text-white">Orders Breakdown</h4>
-                                    <p class="mt-1 text-sm text-slate-400">User email, service, price, API cost, profit, and status in one table.</p>
+                                    <h4 class="text-lg font-semibold text-slate-900">Orders Breakdown</h4>
+                                    <p class="mt-1 text-sm text-slate-500">User email, service, price, API cost, profit, and status in one table.</p>
                                 </div>
                                 <div id="admin-orders-list" class="scroll-area overflow-x-auto"></div>
                             </div>
