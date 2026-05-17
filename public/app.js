@@ -1619,7 +1619,7 @@ function renderNumberHistory(entries = state.numberHistory) {
                         <strong>${escapeHtml(entry?.otp_code || 'Not received yet')}</strong>
                     </div>
                     <div class="number-history-card-field">
-                        <span>Date</span>
+                        <span>Date / Time</span>
                         <strong>${escapeHtml(formatRelativeTime(historyDate))}</strong>
                     </div>
                 </div>
@@ -1630,33 +1630,33 @@ function renderNumberHistory(entries = state.numberHistory) {
 
 function updateActivationSummaryLine() {
     const summaryLine = qs('activation-summary-line');
-    if (!summaryLine) return;
     const activeOrders = getActiveOrdersFromState();
     const completedOrders = getCompletedOrdersFromState();
     const activeAmount = activeOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
     const completedAmount = completedOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
     const phoneHistoryAction = qs('header-phone-history-action');
     if (phoneHistoryAction) {
-        phoneHistoryAction.textContent = 'Phone Number Activation';
-        phoneHistoryAction.dataset.meta = `${activeOrders.length} active • ${completedOrders.length} completed`;
+        phoneHistoryAction.textContent = 'Waiting for numbers';
         phoneHistoryAction.title = `${activeOrders.length} active order${activeOrders.length === 1 ? '' : 's'} and ${completedOrders.length} completed order${completedOrders.length === 1 ? '' : 's'}`;
     }
+    if (!summaryLine) return;
     summaryLine.textContent = `Active orders ${activeOrders.length} pcs / Value ${formatMoneyPrecise(activeAmount)} / Completed ${completedOrders.length} pcs / Value ${formatMoneyPrecise(completedAmount)}`;
 }
 
 function syncWaitingOrdersVisibility() {
-    const summaryLine = qs('activation-summary-line');
     const ordersList = qs('active-orders-list');
     const completedSection = qs('completed-orders-section');
-    if (!summaryLine || !ordersList) return;
-    summaryLine.classList.remove('activation-summary-toggle');
-    summaryLine.removeAttribute('aria-disabled');
-    summaryLine.removeAttribute('aria-expanded');
-    summaryLine.tabIndex = -1;
+    const summaryLine = qs('activation-summary-line');
+    if (!ordersList) return;
+    if (summaryLine) {
+        summaryLine.classList.remove('activation-summary-toggle');
+        summaryLine.removeAttribute('aria-disabled');
+        summaryLine.removeAttribute('aria-expanded');
+        summaryLine.tabIndex = -1;
+    }
     const shouldShowActivations = state.historyView === 'activations' && Boolean(state.currentUser);
-    const shouldShowCompletedSection = shouldShowActivations && !['waiting', 'cancelled'].includes(state.activationFilter);
     ordersList.classList.toggle('hidden', !shouldShowActivations);
-    completedSection?.classList.toggle('hidden', !shouldShowCompletedSection);
+    completedSection?.classList.add('hidden');
 }
 
 function setActivationFilter(filter) {
@@ -1679,7 +1679,6 @@ function setHistoryView(view, options = {}) {
     const normalizedView = view === 'payments' ? 'payments' : view === 'numbers' ? 'numbers' : 'activations';
     state.historyView = normalizedView;
     const isLoggedIn = Boolean(state.currentUser);
-    const shouldShowCompletedSection = normalizedView === 'activations' && isLoggedIn && !['waiting', 'cancelled'].includes(state.activationFilter);
     const title = qs('history-section-title');
     const titleCopy = qs('history-section-copy');
     const filterBar = qs('activation-filter-bar');
@@ -1694,25 +1693,24 @@ function setHistoryView(view, options = {}) {
             ? 'Payment Details'
             : normalizedView === 'numbers'
                 ? 'All Number History'
-                : 'Phone Number Activation';
+                : 'Waiting for numbers';
     }
     if (titleCopy) {
         titleCopy.textContent = normalizedView === 'payments'
             ? 'View pending, success, and cancel payment requests from your account.'
             : normalizedView === 'numbers'
                 ? 'Permanent record of every purchased number, OTP code, and final status. Newest entries appear first.'
-                : 'Purchased numbers waiting for OTP appear here instantly, and all saved numbers remain available in history later.';
+                : 'Purchased numbers waiting for OTP appear here instantly. Use All Number History to view every saved number and OTP later.';
     }
-    filterBar?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn);
-    summaryLine?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn);
+    filterBar?.classList.toggle('hidden', !isLoggedIn);
+    summaryLine?.classList.add('hidden');
     processingWrap?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn || !state.purchaseRequests.size);
     ordersList?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn);
-    completedSection?.classList.toggle('hidden', !shouldShowCompletedSection);
+    completedSection?.classList.add('hidden');
     numberHistorySection?.classList.toggle('hidden', normalizedView !== 'numbers' || !isLoggedIn);
     paymentSection?.classList.toggle('hidden', normalizedView !== 'payments' || !isLoggedIn);
     qs('header-phone-history-action')?.classList.toggle('active', normalizedView === 'activations');
     qs('header-number-history-action')?.classList.toggle('active', normalizedView === 'numbers');
-    qs('header-payment-detail-action')?.classList.toggle('active', normalizedView === 'payments');
     if (normalizedView === 'payments' && isLoggedIn) {
         renderPaymentHistoryCards(state.paymentRequests);
     } else if (normalizedView === 'numbers' && isLoggedIn) {
@@ -3966,6 +3964,7 @@ function bindStaticEvents() {
         }
         if (action === 'show-phone-history') {
             hideHeaderQuickMenu();
+            setActivationFilter('waiting');
             setHistoryView('activations', { scroll: true });
             return;
         }
