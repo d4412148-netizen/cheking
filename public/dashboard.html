@@ -860,47 +860,27 @@ Spam activity = Ban risk</div>
             <section id="member-history-section" class="app-panel hidden p-4 sm:p-5">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 id="history-section-title" class="text-base font-semibold text-slate-900 sm:text-lg">Phone Number Activation</h2>
-                        <p id="history-section-copy" class="mt-1 text-xs leading-6 text-slate-500 sm:text-sm">Purchased numbers waiting for OTP appear here instantly, and all saved numbers remain available in history later.</p>
-                    </div>
-                </div>
-                <div id="history-top-nav" class="history-top-nav hidden mt-4">
-                    <div class="history-top-nav-row" role="group" aria-label="History navigation">
-                        <button id="header-phone-history-action" type="button" class="history-top-nav-button active" data-action="show-phone-history" data-meta="Live orders and recent completions">Phone Number Activation</button>
-                        <span class="history-top-nav-divider" aria-hidden="true">|</span>
-                        <button id="header-number-history-action" type="button" class="history-top-nav-button" data-action="show-number-history" data-meta="Saved numbers and OTP codes">All Number History</button>
-                        <span class="history-top-nav-divider" aria-hidden="true">|</span>
-                        <button id="header-payment-detail-action" type="button" class="history-top-nav-button" data-action="show-payment-history" data-meta="Pending / Success / Cancel">Check Payment Details</button>
+                        <h2 id="history-section-title" class="text-base font-semibold text-slate-900 sm:text-lg">Waiting for numbers</h2>
+                        <p id="history-section-copy" class="mt-1 text-xs leading-6 text-slate-500 sm:text-sm">Purchased numbers waiting for OTP appear here instantly. Use All Number History to view every saved number and OTP later.</p>
                     </div>
                 </div>
                 <div id="activation-filter-bar" class="mt-4 flex flex-wrap gap-2">
-                    <button type="button" class="history-pill" data-history-filter="waiting">Waiting for numbers</button>
-                    <button type="button" class="history-pill" data-history-filter="paid">Paid only</button>
-                    <button type="button" class="history-pill" data-history-filter="cancelled">Cancel only</button>
-                    <button type="button" class="history-pill" data-history-filter="all">All phone activation</button>
+                    <button id="header-phone-history-action" type="button" class="history-pill active" data-action="show-phone-history">Waiting for numbers</button>
+                    <button id="header-number-history-action" type="button" class="history-pill" data-action="show-number-history">All Number History</button>
                 </div>
-                <button id="activation-summary-line" type="button" class="mt-3 text-[12px] font-medium text-slate-400">Active order table 0 pcs / Value 0 PKR</button>
                 <div id="processing-orders-wrap" class="processing-inline-wrap mt-3 hidden">
                     <button id="processing-orders-summary" type="button" class="processing-inline-summary" aria-expanded="false">1 number in processing ▶</button>
                     <div id="processing-orders-list" class="processing-inline-list hidden"></div>
                     <button id="processing-orders-cancel" type="button" data-action="cancel-purchase-progress" class="processing-inline-cancel hidden">Cancel processing</button>
                 </div>
                 <div id="active-orders-list" class="activation-orders-shell mt-3 space-y-3"></div>
-                <div id="completed-orders-section" class="mt-4">
-                    <div>
-                        <div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">Completed Orders</div>
-                        <div class="mt-2 text-xs leading-6 text-slate-500">Read-only list of completed numbers with received OTP codes.</div>
-                    </div>
-                    <div id="completed-orders-list" class="activation-orders-shell mt-3 space-y-3"></div>
-                </div>
                 <div id="number-history-section" class="mt-4 hidden">
                     <div class="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
                             <div>
                                 <div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-500">All Number History</div>
                                 <div class="mt-2 text-xs leading-6 text-slate-500">Every purchased number, OTP code, and final status stays saved here even after complete, cancel, or expiry.</div>
                             </div>
-                            <button type="button" data-action="show-phone-history" class="btn-soft">Back to Active Orders</button>
                         </div>
                         <div class="number-history-search-shell mt-4">
                             <i class="fa-solid fa-magnifying-glass text-slate-500"></i>
