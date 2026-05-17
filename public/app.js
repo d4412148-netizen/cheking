@@ -4,6 +4,7 @@ const state = {
     orders: [],
     completedOrders: [],
     paymentRequests: [],
+    numberHistory: [],
     allCountries: [],
     currentFilter: 'all',
     currentService: 'whatsapp',
@@ -23,6 +24,7 @@ const state = {
     otpNotificationKeys: new Set(),
     expireRequestInFlight: false,
     historyView: 'activations',
+    numberHistorySearch: '',
     activationFilter: 'waiting',
     purchaseInFlight: false,
     purchaseRequests: new Map(),
@@ -1525,6 +1527,107 @@ function getVisibleCompletedOrdersForCurrentFilter() {
     return getCompletedOrdersFromState();
 }
 
+function getNumberHistoryTimestamp(entry) {
+    return entry?.last_event_at || entry?.updated_at || entry?.final_status_at || entry?.completed_at || entry?.otp_received_at || entry?.purchased_at || entry?.created_at || '';
+}
+
+function sortNumberHistoryEntries(entries) {
+    const list = Array.isArray(entries) ? [...entries] : [];
+    return list.sort((left, right) => {
+        const leftValue = new Date(getNumberHistoryTimestamp(left) || 0).getTime();
+        const rightValue = new Date(getNumberHistoryTimestamp(right) || 0).getTime();
+        const leftTime = Number.isFinite(leftValue) ? leftValue : 0;
+        const rightTime = Number.isFinite(rightValue) ? rightValue : 0;
+        return rightTime - leftTime;
+    });
+}
+
+function syncNumberHistoryAction(history = state.numberHistory) {
+    const action = qs('header-number-history-action');
+    if (!action) return;
+    const count = Array.isArray(history) ? history.length : 0;
+    action.textContent = 'All Number History';
+    action.dataset.meta = count ? `${count} saved entr${count === 1 ? 'y' : 'ies'}` : 'Saved numbers and OTP codes';
+    action.title = count ? `${count} saved number history entr${count === 1 ? 'y' : 'ies'}` : 'All Number History';
+}
+
+function renderNumberHistory(entries = state.numberHistory) {
+    const container = qs('number-history-list');
+    if (!container) return;
+    const allEntries = sortNumberHistoryEntries(Array.isArray(entries) ? entries : []);
+    syncNumberHistoryAction(allEntries);
+    if (!allEntries.length) {
+        container.innerHTML = renderEmptyState('No number history yet', 'Every purchased number, OTP code, and final status will be saved here automatically.');
+        return;
+    }
+    const search = String(state.numberHistorySearch || '').trim().toLowerCase();
+    const filteredEntries = !search
+        ? allEntries
+        : allEntries.filter((entry) => {
+            const serviceKey = String(entry?.service_type || '').trim().toLowerCase();
+            const serviceMeta = getServiceMeta(serviceKey || entry?.service_name || 'service');
+            const serviceLabel = String(entry?.service_name || '').trim() || serviceMeta.label;
+            const status = String(entry?.status || entry?.order_status || 'pending').trim().toLowerCase();
+            const haystack = [
+                serviceLabel,
+                serviceKey,
+                entry?.country,
+                entry?.phone_number,
+                entry?.otp_code,
+                status
+            ].join(' ').toLowerCase();
+            return haystack.includes(search);
+        });
+    if (!filteredEntries.length) {
+        container.innerHTML = renderEmptyState('No matching number history', 'Try searching with service name, country, number, code, or status.');
+        return;
+    }
+    container.innerHTML = filteredEntries.map((entry) => {
+        const serviceKey = String(entry?.service_type || '').trim().toLowerCase();
+        const serviceMeta = getServiceMeta(serviceKey || entry?.service_name || 'service');
+        const serviceLabel = String(entry?.service_name || '').trim() || serviceMeta.label;
+        const countryLabel = String(entry?.country || 'Unknown country').trim() || 'Unknown country';
+        const status = String(entry?.status || entry?.order_status || 'pending').trim().toLowerCase() || 'pending';
+        const historyDate = getNumberHistoryTimestamp(entry);
+        const subtitleParts = [countryLabel];
+        if (Number(entry?.price || 0) > 0) {
+            subtitleParts.push(formatMoneyPrecise(entry.price));
+        }
+        return `
+            <article class="number-history-card">
+                <div class="number-history-card-header">
+                    <div class="number-history-card-service">
+                        <span>${renderServiceLogo(serviceKey || serviceLabel, 'md')}</span>
+                        <div class="min-w-0">
+                            <div class="number-history-card-service-name">${escapeHtml(serviceLabel)}</div>
+                            <div class="number-history-card-service-subtitle">${escapeHtml(subtitleParts.join(' • '))}</div>
+                        </div>
+                    </div>
+                    ${renderStatusBadge(status)}
+                </div>
+                <div class="number-history-card-grid">
+                    <div class="number-history-card-field">
+                        <span>Country</span>
+                        <strong>${escapeHtml(countryLabel)}</strong>
+                    </div>
+                    <div class="number-history-card-field">
+                        <span>Number</span>
+                        <strong>${escapeHtml(entry?.phone_number || 'Not available')}</strong>
+                    </div>
+                    <div class="number-history-card-field number-history-card-code">
+                        <span>Code</span>
+                        <strong>${escapeHtml(entry?.otp_code || 'Not received yet')}</strong>
+                    </div>
+                    <div class="number-history-card-field">
+                        <span>Date</span>
+                        <strong>${escapeHtml(formatRelativeTime(historyDate))}</strong>
+                    </div>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
 function updateActivationSummaryLine() {
     const summaryLine = qs('activation-summary-line');
     if (!summaryLine) return;
@@ -1532,6 +1635,12 @@ function updateActivationSummaryLine() {
     const completedOrders = getCompletedOrdersFromState();
     const activeAmount = activeOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
     const completedAmount = completedOrders.reduce((sum, order) => sum + Number(order.price || 0), 0);
+    const phoneHistoryAction = qs('header-phone-history-action');
+    if (phoneHistoryAction) {
+        phoneHistoryAction.textContent = 'Phone Number Activation';
+        phoneHistoryAction.dataset.meta = `${activeOrders.length} active • ${completedOrders.length} completed`;
+        phoneHistoryAction.title = `${activeOrders.length} active order${activeOrders.length === 1 ? '' : 's'} and ${completedOrders.length} completed order${completedOrders.length === 1 ? '' : 's'}`;
+    }
     summaryLine.textContent = `Active orders ${activeOrders.length} pcs / Value ${formatMoneyPrecise(activeAmount)} / Completed ${completedOrders.length} pcs / Value ${formatMoneyPrecise(completedAmount)}`;
 }
 
@@ -1567,7 +1676,7 @@ function setActivationFilter(filter) {
 }
 
 function setHistoryView(view, options = {}) {
-    const normalizedView = view === 'payments' ? 'payments' : 'activations';
+    const normalizedView = view === 'payments' ? 'payments' : view === 'numbers' ? 'numbers' : 'activations';
     state.historyView = normalizedView;
     const isLoggedIn = Boolean(state.currentUser);
     const shouldShowCompletedSection = normalizedView === 'activations' && isLoggedIn && !['waiting', 'cancelled'].includes(state.activationFilter);
@@ -1578,25 +1687,36 @@ function setHistoryView(view, options = {}) {
     const processingWrap = qs('processing-orders-wrap');
     const ordersList = qs('active-orders-list');
     const completedSection = qs('completed-orders-section');
+    const numberHistorySection = qs('number-history-section');
     const paymentSection = qs('payment-history-section');
     if (title) {
-        title.textContent = normalizedView === 'payments' ? 'Payment Details' : 'Active Orders';
+        title.textContent = normalizedView === 'payments'
+            ? 'Payment Details'
+            : normalizedView === 'numbers'
+                ? 'All Number History'
+                : 'Phone Number Activation';
     }
     if (titleCopy) {
         titleCopy.textContent = normalizedView === 'payments'
             ? 'View pending, success, and cancel payment requests from your account.'
-            : 'Purchased numbers waiting for OTP appear here instantly. Completed orders stay below for easy review.';
+            : normalizedView === 'numbers'
+                ? 'Permanent record of every purchased number, OTP code, and final status. Newest entries appear first.'
+                : 'Purchased numbers waiting for OTP appear here instantly, and all saved numbers remain available in history later.';
     }
     filterBar?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn);
     summaryLine?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn);
     processingWrap?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn || !state.purchaseRequests.size);
     ordersList?.classList.toggle('hidden', normalizedView !== 'activations' || !isLoggedIn);
     completedSection?.classList.toggle('hidden', !shouldShowCompletedSection);
+    numberHistorySection?.classList.toggle('hidden', normalizedView !== 'numbers' || !isLoggedIn);
     paymentSection?.classList.toggle('hidden', normalizedView !== 'payments' || !isLoggedIn);
     qs('header-phone-history-action')?.classList.toggle('active', normalizedView === 'activations');
+    qs('header-number-history-action')?.classList.toggle('active', normalizedView === 'numbers');
     qs('header-payment-detail-action')?.classList.toggle('active', normalizedView === 'payments');
     if (normalizedView === 'payments' && isLoggedIn) {
         renderPaymentHistoryCards(state.paymentRequests);
+    } else if (normalizedView === 'numbers' && isLoggedIn) {
+        renderNumberHistory(state.numberHistory);
     } else if (isLoggedIn) {
         renderActiveOrders(state.orders);
     }
@@ -1605,6 +1725,8 @@ function setHistoryView(view, options = {}) {
     if (options.scroll) {
         const scrollTarget = normalizedView === 'payments'
             ? paymentSection
+            : normalizedView === 'numbers'
+                ? numberHistorySection
             : title?.closest('section');
         scrollTarget?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -2352,10 +2474,10 @@ function renderAdminTotalUsersSummary(users) {
     if (!container) return;
     const totalUsers = Array.isArray(users) ? users.length : 0;
     container.innerHTML = `
-        <div class="rounded-[24px] border border-emerald-400/20 bg-gradient-to-br from-emerald-500/15 via-emerald-400/10 to-slate-950/20 p-5">
-            <div class="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200">Total Users</div>
-            <div class="mt-3 text-3xl font-black tracking-tight text-white">${escapeHtml(String(totalUsers))}</div>
-            <div class="mt-2 text-sm text-slate-300">Registered users currently available in the system.</div>
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Total Users</div>
+            <div class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">${escapeHtml(String(totalUsers))}</div>
+            <div class="mt-2 text-sm text-slate-500">Registered users currently available in the system.</div>
         </div>
     `;
 }
@@ -2366,13 +2488,13 @@ function renderAdminDailyProfitDetails(entries, summary) {
     const todayKey = getFinancialDateKey(new Date());
     const summaryMarkup = `
         <div class="grid gap-3 sm:grid-cols-2">
-            <div class="rounded-[22px] border border-emerald-400/20 bg-gradient-to-br from-emerald-500/15 to-slate-900/30 p-4">
-                <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">Today Profit</div>
-                <div class="mt-2 text-2xl font-black text-white">${escapeHtml(formatMoneyPrecise(summary?.todayProfit || 0))}</div>
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Today Profit</div>
+                <div class="mt-2 text-2xl font-extrabold text-emerald-700">${escapeHtml(formatMoneyPrecise(summary?.todayProfit || 0))}</div>
             </div>
-            <div class="rounded-[22px] border border-slate-700/70 bg-slate-900/60 p-4">
-                <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Overall Profit</div>
-                <div class="mt-2 text-2xl font-black text-white">${escapeHtml(formatMoneyPrecise(summary?.totalProfit || 0))}</div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Overall Profit</div>
+                <div class="mt-2 text-2xl font-extrabold text-slate-900">${escapeHtml(formatMoneyPrecise(summary?.totalProfit || 0))}</div>
             </div>
         </div>
     `;
@@ -2415,14 +2537,14 @@ function renderAdminUserSpending(spending, users) {
     const topSpender = spendingRows[0];
     const summaryMarkup = `
         <div class="grid gap-3 lg:grid-cols-2">
-            <div class="rounded-[22px] border border-emerald-400/20 bg-gradient-to-br from-emerald-500/15 to-slate-900/30 p-4">
-                <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">Total Spending</div>
-                <div class="mt-2 text-2xl font-black text-white">${escapeHtml(formatMoneyPrecise(spending?.total || 0))}</div>
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Total Spending</div>
+                <div class="mt-2 text-2xl font-extrabold text-emerald-700">${escapeHtml(formatMoneyPrecise(spending?.total || 0))}</div>
             </div>
-            <div class="rounded-[22px] border border-amber-300/20 bg-gradient-to-br from-amber-400/15 to-slate-900/30 p-4">
-                <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200">Top Spender</div>
-                <div class="mt-2 text-lg font-bold text-white">${escapeHtml(topSpender ? topSpender.userName : '—')}</div>
-                <div class="mt-1 text-sm text-slate-300">${escapeHtml(topSpender ? `${formatMoneyPrecise(topSpender.amount)} • ID ${topSpender.userId}` : 'No completed spending yet')}</div>
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">Top Spender</div>
+                <div class="mt-2 text-lg font-bold text-slate-900">${escapeHtml(topSpender ? topSpender.userName : '—')}</div>
+                <div class="mt-1 text-sm text-slate-500">${escapeHtml(topSpender ? `${formatMoneyPrecise(topSpender.amount)} • ID ${topSpender.userId}` : 'No completed spending yet')}</div>
             </div>
         </div>
     `;
@@ -2506,6 +2628,9 @@ function syncSidebarPendingPayment(requests) {
     const paymentAction = qs('header-payment-detail-action');
     if (paymentAction) {
         paymentAction.textContent = 'Check Payment Details';
+        paymentAction.dataset.meta = pendingRequests.length
+            ? `Pending ${formatMoneyPrecise(totalPendingAmount)}`
+            : 'Pending / Success / Cancel';
         paymentAction.title = pendingRequests.length
             ? `Pending amount ${formatMoneyPrecise(totalPendingAmount)}`
             : 'Check Payment Details';
@@ -2589,21 +2714,21 @@ function renderAdminPaymentRequests(paymentRequests, legacyTransactions) {
         ` : '<span class="text-xs text-slate-500">No proof</span>';
         const actionButtons = item.entry_kind === 'payment_request'
             ? `
-                <button class="inline-flex items-center gap-1 rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-400" data-action="approve-payment-request" data-request-id="${escapeAttr(item.id)}">
+                <button class="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100" data-action="approve-payment-request" data-request-id="${escapeAttr(item.id)}">
                     <i class="fa-solid fa-check"></i>
                     <span>Approve</span>
                 </button>
-                <button class="inline-flex items-center gap-1 rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-400" data-action="cancel-payment-request" data-request-id="${escapeAttr(item.id)}">
+                <button class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100" data-action="cancel-payment-request" data-request-id="${escapeAttr(item.id)}">
                     <i class="fa-solid fa-xmark"></i>
                     <span>Cancel</span>
                 </button>
             `
             : `
-                <button class="inline-flex items-center gap-1 rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-400" data-action="approve-transaction" data-tx-id="${escapeAttr(item.id)}">
+                <button class="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100" data-action="approve-transaction" data-tx-id="${escapeAttr(item.id)}">
                     <i class="fa-solid fa-check"></i>
                     <span>Approve</span>
                 </button>
-                <button class="inline-flex items-center gap-1 rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-400" data-action="cancel-transaction" data-tx-id="${escapeAttr(item.id)}">
+                <button class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100" data-action="cancel-transaction" data-tx-id="${escapeAttr(item.id)}">
                     <i class="fa-solid fa-xmark"></i>
                     <span>Cancel</span>
                 </button>
@@ -2766,7 +2891,7 @@ function renderAdminUsers(users) {
                 <td class="px-4 py-3">${renderStatusBadge(roleLabel)}</td>
                 <td class="px-4 py-3">
                     <div class="flex flex-wrap gap-2">
-                        <button class="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500" data-action="adjust-user-balance" data-user-id="${escapeAttr(user.id)}" data-user-label="${escapeAttr(user.name || user.email || `User #${user.id}`)}">
+                        <button class="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100" data-action="adjust-user-balance" data-user-id="${escapeAttr(user.id)}" data-user-label="${escapeAttr(user.name || user.email || `User #${user.id}`)}">
                             <i class="fa-solid fa-scale-balanced"></i>
                             <span>Adjust</span>
                         </button>
@@ -2929,6 +3054,30 @@ async function loadPaymentHistory() {
     }
 }
 
+async function loadNumberHistory() {
+    const container = qs('number-history-list');
+    if (!state.currentUser) {
+        state.numberHistory = [];
+        syncNumberHistoryAction([]);
+        if (container) {
+            container.innerHTML = '';
+        }
+        return [];
+    }
+    if (!container) return [];
+    try {
+        const history = await fetchJSON('/api/number-history');
+        state.numberHistory = Array.isArray(history) ? history : [];
+        renderNumberHistory(state.numberHistory);
+        return state.numberHistory;
+    } catch {
+        state.numberHistory = [];
+        syncNumberHistoryAction([]);
+        container.innerHTML = renderEmptyState('Number history unavailable', 'Your saved number history could not be loaded right now.');
+        return [];
+    }
+}
+
 async function loadAdminData() {
     if (!state.currentUser || !state.currentUser.isAdmin) return;
     try {
@@ -3028,6 +3177,7 @@ async function refreshUserInfo() {
         }
         renderActiveOrders(orders);
         await loadPaymentHistory();
+        await loadNumberHistory();
         await loadReferralProgram({ silent: true });
         setActivationFilter(state.activationFilter);
         setHistoryView(state.historyView);
@@ -3069,11 +3219,13 @@ async function checkAuth() {
         state.currentUser = null;
         state.orders = [];
         state.completedOrders = [];
+        state.numberHistory = [];
         state.otpNotificationKeys = new Set();
         state.paymentRequests = [];
         state.referralProgram = null;
         state.adminReferrals = [];
         state.historyView = 'activations';
+        state.numberHistorySearch = '';
         state.activationFilter = 'waiting';
         syncAccountShortcutButtons();
         hideAccountDetails();
@@ -3083,9 +3235,13 @@ async function checkAuth() {
         stopInlineOrderTimers();
         closeModal('login-prompt');
         syncGuestBrowsingState();
-        qs('payment-history-section').classList.add('hidden');
+        const numberHistorySearchInput = qs('number-history-search');
+        if (numberHistorySearchInput) numberHistorySearchInput.value = '';
+        qs('number-history-section')?.classList.add('hidden');
+        qs('payment-history-section')?.classList.add('hidden');
         syncSidebarPendingPayment([]);
-        qs('admin-panel').classList.add('hidden');
+        syncNumberHistoryAction([]);
+        qs('admin-panel')?.classList.add('hidden');
         if (state.adminRefreshInterval) window.clearInterval(state.adminRefreshInterval);
         state.adminRefreshInterval = null;
         if (state.paymentHistoryRefreshInterval) window.clearInterval(state.paymentHistoryRefreshInterval);
@@ -3202,12 +3358,15 @@ async function logout() {
         state.currentUser = null;
         state.orders = [];
         state.completedOrders = [];
+        state.numberHistory = [];
         state.otpNotificationKeys = new Set();
         state.paymentRequests = [];
         state.historyView = 'activations';
-        state.activationFilter = 'waiting';
-        syncAccountShortcutButtons();
-        hideAccountDetails();
+        state.numberHistorySearch = '';
+        state.activeOrder = null;
+        stopOrderIntervals();
+        stopInlineOrderPolling();
+        stopInlineOrderTimers();
         hideHeaderQuickMenu();
         state.activeOrder = null;
         stopOrderIntervals();
@@ -3225,9 +3384,13 @@ async function logout() {
         hidePaymentTopAlert();
         closeModal('login-prompt');
         syncGuestBrowsingState();
-        qs('payment-history-section').classList.add('hidden');
+        const numberHistorySearchInput = qs('number-history-search');
+        if (numberHistorySearchInput) numberHistorySearchInput.value = '';
+        qs('number-history-section')?.classList.add('hidden');
+        syncNumberHistoryAction([]);
+        qs('payment-history-section')?.classList.add('hidden');
         syncSidebarPendingPayment([]);
-        qs('admin-panel').classList.add('hidden');
+        qs('admin-panel')?.classList.add('hidden');
         showToast('Logged out', 'success');
     } catch (err) {
         showToast(err.message || 'Logout failed', 'error');
@@ -3411,6 +3574,8 @@ async function completeActiveOrder(orderId) {
         state.orders = state.orders.filter(order => String(order.id) !== String(targetOrderId));
         renderActiveOrders(state.orders);
         updateActivationSummaryLine();
+        await loadNumberHistory();
+        setHistoryView(state.historyView);
         // await refreshUserInfo(); // Removed to prevent order reappearing
     } catch (err) {
         showToast(err.message || 'Could not complete order', 'error');
@@ -3433,6 +3598,8 @@ async function cancelActiveOrder(orderId) {
         state.completedOrders = state.completedOrders.filter(order => String(order.id) !== String(targetOrderId));
         renderActiveOrders(state.orders);
         updateActivationSummaryLine();
+        await loadNumberHistory();
+        setHistoryView(state.historyView);
         await refreshWalletBalanceSilently({ showIncreaseToast: false });
     } catch (err) {
         showToast(err.message || 'Cancel failed', 'error');
@@ -3739,6 +3906,10 @@ function bindStaticEvents() {
     });
     qs('country-search').addEventListener('input', renderCountries);
     qs('service-search')?.addEventListener('input', filterServiceButtons);
+    qs('number-history-search')?.addEventListener('input', (event) => {
+        state.numberHistorySearch = String(event.target?.value || '');
+        renderNumberHistory(state.numberHistory);
+    });
     qs('admin-users-search')?.addEventListener('input', (event) => {
         state.adminUsersSearch = String(event.target?.value || '');
         syncAdminUsersList();
@@ -3796,6 +3967,11 @@ function bindStaticEvents() {
         if (action === 'show-phone-history') {
             hideHeaderQuickMenu();
             setHistoryView('activations', { scroll: true });
+            return;
+        }
+        if (action === 'show-number-history') {
+            hideHeaderQuickMenu();
+            setHistoryView('numbers', { scroll: true });
             return;
         }
         if (action === 'show-payment-history') {
