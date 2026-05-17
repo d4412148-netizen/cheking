@@ -7037,6 +7037,26 @@ function resolveCountryReferenceFromLookup(countryName, lookup) {
     return null;
 }
 
+function parseCountryPriceFromServiceLine(line) {
+    const normalizedLine = String(line || '').trim();
+    if (!normalizedLine) return null;
+    const suffixMatch = normalizedLine.match(/^(.*?)\s*(?:[-—–:]+\s*)?([0-9]+(?:\.[0-9]+)?)\s*(?:PKR|RS\.?)\s*$/i);
+    if (suffixMatch) {
+        return {
+            countryName: suffixMatch[1],
+            price: Number(suffixMatch[2])
+        };
+    }
+    const prefixMatch = normalizedLine.match(/^(.*?)\s+(?:PKR|RS\.?)\s*([0-9]+(?:\.[0-9]+)?)\s*$/i);
+    if (prefixMatch) {
+        return {
+            countryName: prefixMatch[1],
+            price: Number(prefixMatch[2])
+        };
+    }
+    return null;
+}
+
 function parseCountriesFromServiceText(rawText, lookup, serviceLabel = '') {
     const countries = [];
     const seenCountryIds = new Set();
@@ -7046,10 +7066,10 @@ function parseCountriesFromServiceText(rawText, lookup, serviceLabel = '') {
         .map((line) => line.replace(/\*/g, '').trim())
         .filter(Boolean)
         .forEach((line) => {
-            const match = line.match(/^(.*?)\s*(?:\W+\s*)?([0-9]+(?:\.[0-9]+)?)\s*PKR\b/i);
-            if (!match) return;
-            const rawCountryName = sanitizeCountryNameFromServiceFile(match[1], serviceLabel);
-            const price = Number(match[2]);
+            const parsedLine = parseCountryPriceFromServiceLine(line);
+            if (!parsedLine) return;
+            const rawCountryName = sanitizeCountryNameFromServiceFile(parsedLine.countryName, serviceLabel);
+            const price = Number(parsedLine.price);
             if (!rawCountryName || !Number.isFinite(price)) return;
             const reference = resolveCountryReferenceFromLookup(rawCountryName, lookup);
             if (!reference) {
@@ -7143,7 +7163,9 @@ function buildExtraServiceCountryArraysFromFiles(catalog) {
     });
 
     bestCandidatesByServiceType.forEach((parsed, serviceType) => {
-        arraysByServiceType[serviceType] = parsed.countries;
+        if (Array.isArray(parsed?.countries) && parsed.countries.length) {
+            arraysByServiceType[serviceType] = parsed.countries;
+        }
     });
 
     return arraysByServiceType;
