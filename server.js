@@ -317,6 +317,20 @@ function normalizeOrder(row) {
     };
 }
 
+function normalizeNumberHistoryEntry(row) {
+    if (!row) return null;
+    const status = normalizeOrderStatus(row);
+    return {
+        ...row,
+        order_id: row.order_id == null ? null : Number(row.order_id),
+        user_id: row.user_id == null ? null : Number(row.user_id),
+        country_id: row.country_id == null ? null : Number(row.country_id),
+        price: Number(row.price || 0),
+        otp_received: Boolean(row.otp_received),
+        status
+    };
+}
+
 function isAdminUser(user) {
     return Boolean(user && (user.is_admin || String(user.role || '').toLowerCase() === 'admin'));
 }
@@ -669,6 +683,144 @@ async function initDB() {
     await queryRun('CREATE INDEX IF NOT EXISTS idx_orders_user_service_last_purchase ON orders (user_id, service_type, last_purchase_at DESC)');
     await queryRun('CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_user_idempotency_key ON orders (user_id, idempotency_key) WHERE idempotency_key IS NOT NULL');
     await queryRun('DROP INDEX IF EXISTS idx_orders_open_service_country_unique');
+
+    await queryRun(`
+        CREATE TABLE IF NOT EXISTS number_history (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            order_id INTEGER UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+            user_email TEXT,
+            service_type TEXT,
+            service_name TEXT,
+            country TEXT,
+            country_code TEXT,
+            country_id INTEGER,
+            price NUMERIC(12,2) DEFAULT 0,
+            phone_number TEXT,
+            activation_id TEXT,
+            otp_received BOOLEAN DEFAULT FALSE,
+            otp_code TEXT,
+            status TEXT DEFAULT 'pending',
+            order_status TEXT DEFAULT 'pending',
+            purchased_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            otp_received_at TIMESTAMPTZ,
+            final_status_at TIMESTAMPTZ,
+            completed_at TIMESTAMPTZ,
+            cancelled_at TIMESTAMPTZ,
+            expired_at TIMESTAMPTZ,
+            last_event_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS user_id INTEGER');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS order_id INTEGER');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS user_email TEXT');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS service_type TEXT');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS service_name TEXT');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS country TEXT');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS country_code TEXT');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS country_id INTEGER');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS price NUMERIC(12,2) DEFAULT 0');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS phone_number TEXT');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS activation_id TEXT');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS otp_received BOOLEAN DEFAULT FALSE');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS otp_code TEXT');
+    await queryRun("ALTER TABLE number_history ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'");
+    await queryRun("ALTER TABLE number_history ADD COLUMN IF NOT EXISTS order_status TEXT DEFAULT 'pending'");
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS otp_received_at TIMESTAMPTZ');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS final_status_at TIMESTAMPTZ');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS expired_at TIMESTAMPTZ');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS last_event_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP');
+    await queryRun('ALTER TABLE number_history ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP');
+    await queryRun('CREATE UNIQUE INDEX IF NOT EXISTS idx_number_history_order_id ON number_history (order_id)');
+    await queryRun('CREATE INDEX IF NOT EXISTS idx_number_history_user_last_event ON number_history (user_id, last_event_at DESC, id DESC)');
+    await queryRun(`
+        INSERT INTO number_history (
+            user_id,
+            order_id,
+            user_email,
+            service_type,
+            service_name,
+            country,
+            country_code,
+            country_id,
+            price,
+            phone_number,
+            activation_id,
+            otp_received,
+            otp_code,
+            status,
+            order_status,
+            purchased_at,
+            otp_received_at,
+            final_status_at,
+            completed_at,
+            cancelled_at,
+            expired_at,
+            last_event_at
+        )
+        SELECT
+            o.user_id,
+            o.id,
+            COALESCE(o.user_email, u.email),
+            o.service_type,
+            o.service_name,
+            o.country,
+            o.country_code,
+            o.country_id,
+            COALESCE(o.price, 0),
+            o.phone_number,
+            o.activation_id,
+            COALESCE(o.otp_received, FALSE),
+            NULLIF(TRIM(COALESCE(o.otp_code, '')), ''),
+            CASE
+                WHEN LOWER(COALESCE(o.status, o.order_status, 'pending')) = 'completed' THEN 'completed'
+                WHEN LOWER(COALESCE(o.status, o.order_status, 'pending')) IN ('expired', 'expired_refunded') THEN 'expired'
+                WHEN LOWER(COALESCE(o.status, o.order_status, 'pending')) = 'cancelled' THEN 'cancelled'
+                WHEN COALESCE(o.otp_received, FALSE) = TRUE
+                    OR NULLIF(TRIM(COALESCE(o.otp_code, '')), '') IS NOT NULL
+                    OR LOWER(COALESCE(o.order_status, '')) = 'otp_received'
+                    THEN 'active'
+                ELSE 'pending'
+            END,
+            LOWER(COALESCE(o.order_status, o.status, 'pending')),
+            COALESCE(o.created_at, CURRENT_TIMESTAMP),
+            CASE
+                WHEN COALESCE(o.otp_received, FALSE) = TRUE OR NULLIF(TRIM(COALESCE(o.otp_code, '')), '') IS NOT NULL
+                    THEN COALESCE(o.completed_at, o.created_at, CURRENT_TIMESTAMP)
+                ELSE NULL
+            END,
+            CASE
+                WHEN LOWER(COALESCE(o.status, o.order_status, 'pending')) IN ('completed', 'cancelled', 'expired', 'expired_refunded')
+                    THEN COALESCE(o.completed_at, o.created_at, CURRENT_TIMESTAMP)
+                ELSE NULL
+            END,
+            CASE
+                WHEN LOWER(COALESCE(o.status, o.order_status, 'pending')) = 'completed'
+                    THEN COALESCE(o.completed_at, o.created_at, CURRENT_TIMESTAMP)
+                ELSE NULL
+            END,
+            CASE
+                WHEN LOWER(COALESCE(o.status, o.order_status, 'pending')) = 'cancelled'
+                    THEN COALESCE(o.completed_at, o.created_at, CURRENT_TIMESTAMP)
+                ELSE NULL
+            END,
+            CASE
+                WHEN LOWER(COALESCE(o.status, o.order_status, 'pending')) IN ('expired', 'expired_refunded')
+                    THEN COALESCE(o.completed_at, o.created_at, CURRENT_TIMESTAMP)
+                ELSE NULL
+            END,
+            COALESCE(o.completed_at, o.created_at, CURRENT_TIMESTAMP)
+        FROM orders o
+        LEFT JOIN users u ON u.id = o.user_id
+        WHERE o.user_id IS NOT NULL
+        ON CONFLICT (order_id) DO NOTHING
+    `);
 
     await queryRun(`
         CREATE TABLE IF NOT EXISTS transactions (
@@ -1397,6 +1549,139 @@ async function getUserCombinedHistory(userId, limit = 300) {
     }));
 }
 
+async function getNumberHistoryByUser(userId, limit = 500) {
+    const rows = await queryAll(`
+        SELECT *
+        FROM number_history
+        WHERE user_id = $1
+        ORDER BY COALESCE(last_event_at, updated_at, purchased_at, created_at) DESC, id DESC
+        LIMIT $2
+    `, [userId, limit]);
+    return rows.map(normalizeNumberHistoryEntry);
+}
+
+function buildNumberHistorySnapshot(order, options = {}) {
+    const normalizedOrder = normalizeOrder(order);
+    const orderId = Number(normalizedOrder?.id);
+    const userId = Number(normalizedOrder?.user_id);
+    if (!Number.isFinite(orderId) || orderId <= 0 || !Number.isFinite(userId) || userId <= 0) {
+        return null;
+    }
+    const lifecycleStatus = normalizeOrderStatus(normalizedOrder);
+    const eventAt = String(options.eventAt || new Date().toISOString());
+    const finalizedAt = String(options.finalizedAt || normalizedOrder.completed_at || eventAt);
+    const otpReceivedAt = String(options.otpReceivedAt || normalizedOrder.completed_at || eventAt);
+    const otpCode = String(normalizedOrder.otp_code || '').trim();
+    const hasOtp = Boolean(normalizedOrder.otp_received || otpCode);
+    return {
+        user_id: userId,
+        order_id: orderId,
+        user_email: String(normalizedOrder.user_email || '').trim() || null,
+        service_type: String(normalizedOrder.service_type || '').trim() || null,
+        service_name: String(normalizedOrder.service_name || '').trim() || null,
+        country: String(normalizedOrder.country || '').trim() || null,
+        country_code: String(normalizedOrder.country_code || '').trim() || null,
+        country_id: normalizedOrder.country_id == null ? null : Number(normalizedOrder.country_id),
+        price: Number(normalizedOrder.price || 0),
+        phone_number: String(normalizedOrder.phone_number || '').trim() || null,
+        activation_id: String(normalizedOrder.activation_id || '').trim() || null,
+        otp_received: hasOtp,
+        otp_code: otpCode || null,
+        status: lifecycleStatus,
+        order_status: String(normalizedOrder.order_status || lifecycleStatus || '').trim().toLowerCase() || lifecycleStatus,
+        purchased_at: normalizedOrder.created_at || eventAt,
+        otp_received_at: hasOtp ? otpReceivedAt : null,
+        final_status_at: ['completed', 'cancelled', 'expired'].includes(lifecycleStatus) ? finalizedAt : null,
+        completed_at: lifecycleStatus === 'completed' ? (normalizedOrder.completed_at || finalizedAt) : null,
+        cancelled_at: lifecycleStatus === 'cancelled' ? finalizedAt : null,
+        expired_at: lifecycleStatus === 'expired' ? finalizedAt : null,
+        last_event_at: eventAt
+    };
+}
+
+async function upsertNumberHistoryFromOrder(order, options = {}) {
+    const snapshot = buildNumberHistorySnapshot(order, options);
+    if (!snapshot) return null;
+    const executor = options.client || pool;
+    const result = await executor.query(`
+        INSERT INTO number_history (
+            user_id,
+            order_id,
+            user_email,
+            service_type,
+            service_name,
+            country,
+            country_code,
+            country_id,
+            price,
+            phone_number,
+            activation_id,
+            otp_received,
+            otp_code,
+            status,
+            order_status,
+            purchased_at,
+            otp_received_at,
+            final_status_at,
+            completed_at,
+            cancelled_at,
+            expired_at,
+            last_event_at,
+            updated_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (order_id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            user_email = COALESCE(EXCLUDED.user_email, number_history.user_email),
+            service_type = COALESCE(EXCLUDED.service_type, number_history.service_type),
+            service_name = COALESCE(EXCLUDED.service_name, number_history.service_name),
+            country = COALESCE(EXCLUDED.country, number_history.country),
+            country_code = COALESCE(EXCLUDED.country_code, number_history.country_code),
+            country_id = COALESCE(EXCLUDED.country_id, number_history.country_id),
+            price = COALESCE(EXCLUDED.price, number_history.price),
+            phone_number = COALESCE(EXCLUDED.phone_number, number_history.phone_number),
+            activation_id = COALESCE(EXCLUDED.activation_id, number_history.activation_id),
+            otp_received = COALESCE(number_history.otp_received, FALSE) OR COALESCE(EXCLUDED.otp_received, FALSE),
+            otp_code = COALESCE(EXCLUDED.otp_code, number_history.otp_code),
+            status = COALESCE(EXCLUDED.status, number_history.status),
+            order_status = COALESCE(EXCLUDED.order_status, number_history.order_status),
+            purchased_at = COALESCE(number_history.purchased_at, EXCLUDED.purchased_at),
+            otp_received_at = COALESCE(number_history.otp_received_at, EXCLUDED.otp_received_at),
+            final_status_at = COALESCE(EXCLUDED.final_status_at, number_history.final_status_at),
+            completed_at = COALESCE(number_history.completed_at, EXCLUDED.completed_at),
+            cancelled_at = COALESCE(number_history.cancelled_at, EXCLUDED.cancelled_at),
+            expired_at = COALESCE(number_history.expired_at, EXCLUDED.expired_at),
+            last_event_at = COALESCE(EXCLUDED.last_event_at, number_history.last_event_at, CURRENT_TIMESTAMP),
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+    `, [
+        snapshot.user_id,
+        snapshot.order_id,
+        snapshot.user_email,
+        snapshot.service_type,
+        snapshot.service_name,
+        snapshot.country,
+        snapshot.country_code,
+        snapshot.country_id,
+        snapshot.price,
+        snapshot.phone_number,
+        snapshot.activation_id,
+        snapshot.otp_received,
+        snapshot.otp_code,
+        snapshot.status,
+        snapshot.order_status,
+        snapshot.purchased_at,
+        snapshot.otp_received_at,
+        snapshot.final_status_at,
+        snapshot.completed_at,
+        snapshot.cancelled_at,
+        snapshot.expired_at,
+        snapshot.last_event_at
+    ]);
+    return normalizeNumberHistoryEntry(result.rows[0]);
+}
+
 async function applyAdminBalanceAdjustment({ userId, adminId, amount, reason }) {
     const client = await pool.connect();
     try {
@@ -1435,13 +1720,24 @@ async function getOrderById(orderId) {
     return normalizeOrder(await queryOne('SELECT * FROM orders WHERE id = $1', [orderId]));
 }
 
-async function updateOrder(orderId, updates) {
+async function updateOrder(orderId, updates, options = {}) {
     const keys = Object.keys(updates);
-    if (!keys.length) return;
+    if (!keys.length) return null;
     const fields = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
     const values = keys.map((key) => updates[key]);
     values.push(orderId);
-    await queryRun(`UPDATE orders SET ${fields} WHERE id = $${values.length}`, values);
+    const executor = options.client || pool;
+    const result = await executor.query(`UPDATE orders SET ${fields} WHERE id = $${values.length} RETURNING *`, values);
+    const updatedOrder = normalizeOrder(result.rows[0]);
+    if (updatedOrder && options.syncNumberHistory !== false) {
+        await upsertNumberHistoryFromOrder(updatedOrder, {
+            client: options.client,
+            eventAt: options.eventAt,
+            otpReceivedAt: options.otpReceivedAt,
+            finalizedAt: options.finalizedAt
+        });
+    }
+    return updatedOrder;
 }
 
 async function updateProviderActivationStatus(activationId, status) {
@@ -1495,16 +1791,21 @@ async function expireOrderAndRefund(orderId) {
                 user.id
             ]);
         }
-        const updatedRes = await client.query(
-            'UPDATE orders SET order_status = $1, status = $2 WHERE id = $3 RETURNING *',
-            ['expired', 'expired', order.id]
-        );
+        const expiredAt = now.toISOString();
+        const updatedOrder = await updateOrder(order.id, {
+            order_status: 'expired',
+            status: 'expired'
+        }, {
+            client,
+            eventAt: expiredAt,
+            finalizedAt: expiredAt
+        });
         await client.query('COMMIT');
         return {
             found: true,
             expired: true,
             refunded: Boolean(user),
-            order: normalizeOrder(updatedRes.rows[0]),
+            order: updatedOrder,
             message: EXPIRED_REFUND_MESSAGE
         };
     } catch (err) {
@@ -6585,7 +6886,10 @@ function parseExtraServicesFromCatalogText(rawText, catalog) {
     return extras;
 }
 
-const EXTRA_SERVICE_COUNTRY_FILES_DIR = path.join(__dirname, 'public', 'Application Adding');
+const EXTRA_SERVICE_COUNTRY_FILES_DIRS = [
+    path.join(__dirname, 'public', 'Application Adding'),
+    path.join(__dirname, 'public', 'New Services Lists')
+];
 const WHATSAPP_COUNTRY_FILE_PATH = path.join(__dirname, 'public', 'whatsapp.txt');
 const COUNTRY_CODE_NAME_ALIASES = {
     usa: ['united states', 'united states of america'],
@@ -6779,9 +7083,9 @@ function buildExtraServiceCountryArraysFromFiles(catalog) {
 
     const lookup = buildCountryReferenceLookup(catalog, Object.values(extraServiceCountryArraysByServiceType));
     const bestCandidatesByServiceType = new Map();
-    extraServiceFiles.forEach(({ fileName, serviceLabel, serviceType }) => {
+    extraServiceFiles.forEach(({ filePath, serviceLabel, serviceType }) => {
         try {
-            const rawText = fs.readFileSync(path.join(EXTRA_SERVICE_COUNTRY_FILES_DIR, fileName), 'utf8');
+            const rawText = fs.readFileSync(filePath, 'utf8');
             const parsed = parseCountriesFromServiceText(rawText, lookup, serviceLabel);
             const currentBest = bestCandidatesByServiceType.get(serviceType);
             if (!currentBest
@@ -6801,24 +7105,32 @@ function buildExtraServiceCountryArraysFromFiles(catalog) {
 }
 
 function getExtraServiceFileDescriptors() {
-    try {
-        return fs.readdirSync(EXTRA_SERVICE_COUNTRY_FILES_DIR)
-            .filter((fileName) => /\.txt$/i.test(fileName))
-            .sort((left, right) => left.localeCompare(right))
-            .map((fileName) => {
-                const serviceLabel = fileName.replace(/\.txt$/i, '').trim();
-                const serviceType = createServiceTypeFromLabel(serviceLabel);
-                if (!serviceType) return null;
-                return {
-                    fileName,
-                    serviceLabel,
-                    serviceType
-                };
-            })
-            .filter(Boolean);
-    } catch {
-        return [];
-    }
+    const descriptors = [];
+    EXTRA_SERVICE_COUNTRY_FILES_DIRS.forEach((directoryPath) => {
+        try {
+            fs.readdirSync(directoryPath)
+                .filter((fileName) => /\.txt$/i.test(fileName))
+                .sort((left, right) => left.localeCompare(right))
+                .forEach((fileName) => {
+                    const serviceLabel = fileName.replace(/\.txt$/i, '').trim();
+                    const serviceType = createServiceTypeFromLabel(serviceLabel);
+                    if (!serviceType) return;
+                    descriptors.push({
+                        directoryPath,
+                        fileName,
+                        filePath: path.join(directoryPath, fileName),
+                        serviceLabel,
+                        serviceType
+                    });
+                });
+        } catch {
+        }
+    });
+    return descriptors.sort((left, right) => {
+        const leftKey = `${left.serviceType}:${left.fileName}:${left.directoryPath}`;
+        const rightKey = `${right.serviceType}:${right.fileName}:${right.directoryPath}`;
+        return leftKey.localeCompare(rightKey);
+    });
 }
 
 function extendServiceCatalogWithExtraServices(catalog) {
@@ -6837,7 +7149,9 @@ function extendServiceCatalogWithExtraServices(catalog) {
     const extraServiceFileLabelsByServiceType = new Map();
     extraServiceFiles.forEach((entry) => {
         if (!entry?.serviceType) return;
-        extraServiceFileLabelsByServiceType.set(entry.serviceType, entry.serviceLabel);
+        if (!extraServiceFileLabelsByServiceType.has(entry.serviceType)) {
+            extraServiceFileLabelsByServiceType.set(entry.serviceType, entry.serviceLabel);
+        }
         if (!extraServicesByServiceType.has(entry.serviceType)) {
             extraServicesByServiceType.set(entry.serviceType, {
                 code: null,
@@ -7689,7 +8003,7 @@ app.post('/api/order', ensureAuth, async (req, res) => {
                 payment_method, order_status, status, phone_number, activation_id,
                 expires_at, cancel_available_at, last_purchase_at, idempotency_key, created_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-            RETURNING id
+            RETURNING *
         `, [
             user.id,
             user.email,
@@ -7711,6 +8025,10 @@ app.post('/api/order', ensureAuth, async (req, res) => {
             idempotencyKey,
             now.toISOString()
         ]);
+        await upsertNumberHistoryFromOrder(inserted.rows[0], {
+            client,
+            eventAt: now.toISOString()
+        });
         await client.query(
             'INSERT INTO transactions (user_id, user_email, amount, type, status, description) VALUES ($1, $2, $3, $4, $5, $6)',
             [user.id, user.email, orderPrice, 'deduction', 'approved', `${serviceConfig.serviceName} • ${countryName}`]
@@ -7770,6 +8088,15 @@ app.get('/api/orders', ensureAuth, async (req, res) => {
     }
 });
 
+app.get('/api/number-history', ensureAuth, async (req, res) => {
+    try {
+        const history = await getNumberHistoryByUser(req.session.userId);
+        res.json(history);
+    } catch {
+        res.status(500).send('Server error');
+    }
+});
+
 app.post('/api/orders/:orderId/cancel', ensureAuth, async (req, res) => {
     const client = await pool.connect();
     try {
@@ -7815,7 +8142,15 @@ app.post('/api/orders/:orderId/cancel', ensureAuth, async (req, res) => {
             Number(user.balance || 0) + Number(order.price || 0),
             user.id
         ]);
-        await client.query('UPDATE orders SET order_status = $1, status = $2 WHERE id = $3', ['cancelled', 'cancelled', order.id]);
+        const cancelledAt = now.toISOString();
+        await updateOrder(order.id, {
+            order_status: 'cancelled',
+            status: 'cancelled'
+        }, {
+            client,
+            eventAt: cancelledAt,
+            finalizedAt: cancelledAt
+        });
         await client.query('COMMIT');
         res.send('OK');
     } catch (err) {
@@ -7837,10 +8172,14 @@ app.post('/api/orders/:orderId/complete', ensureAuth, async (req, res) => {
             const completeUrl = `${SMSBOWER_URL}?api_key=${SMSBOWER_API_KEY}&action=setStatus&id=${order.activation_id}&status=6`;
             await axios.get(completeUrl, { timeout: 15000 });
         } catch {}
+        const completedAt = new Date().toISOString();
         await updateOrder(order.id, {
             order_status: 'completed',
             status: 'completed',
-            completed_at: new Date().toISOString()
+            completed_at: completedAt
+        }, {
+            eventAt: completedAt,
+            finalizedAt: completedAt
         });
         res.send('OK');
     } catch (err) {
@@ -7906,11 +8245,15 @@ app.get('/api/orders/:orderId/otp', ensureAuth, async (req, res) => {
         }
         const smsResult = await checkSmsStatus(order.activation_id);
         if (smsResult.success && smsResult.code) {
+            const receivedAt = new Date().toISOString();
             await updateOrder(order.id, {
                 otp_received: true,
                 otp_code: smsResult.code,
                 order_status: 'active',
                 status: 'active'
+            }, {
+                eventAt: receivedAt,
+                otpReceivedAt: receivedAt
             });
             return res.json({ received: true, code: smsResult.code });
         }
