@@ -61,7 +61,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const IS_PROD = NODE_ENV === 'production';
-
+const PUBLIC_DIRECTORY_PATH = path.join(__dirname, 'public');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/app/uploads';
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -255,7 +255,7 @@ app.get('/signup', (req, res) => {
     const queryString = params.toString();
     return res.redirect(`/${queryString ? `?${queryString}` : ''}`);
 });
-app.use(express.static('public', { index: false }));
+app.use(express.static(PUBLIC_DIRECTORY_PATH, { index: false }));
 
 app.use(session({
     ...(sessionStore ? { store: sessionStore } : {}),
@@ -6858,33 +6858,64 @@ function createServiceTypeFromLabel(label, code = '') {
 }
 
 function normalizeServiceIconLookup(value) {
-    return normalizeServiceLookup(value).replace(/\s+/g, '');
+    return String(value || '')
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+        .toLowerCase()
+        .replace(/[\s&,\-\/()]+/g, '')
+        .replace(/[^a-z0-9]+/g, '')
+        .trim();
 }
 
 function buildServiceIconManifest() {
     const iconEntries = new Map();
+    const duplicateEntries = new Map();
+    let totalIconsFound = 0;
     try {
         fs.readdirSync(SERVICE_ICON_DIRECTORY_PATH, { withFileTypes: true }).forEach((entry) => {
             if (!entry?.isFile?.()) return;
             const fileName = String(entry.name || '').trim();
             const extension = path.extname(fileName).toLowerCase();
             if (!fileName || !SERVICE_ICON_ALLOWED_EXTENSIONS.has(extension)) return;
+            totalIconsFound += 1;
             const normalizedName = normalizeServiceIconLookup(path.basename(fileName, extension));
             if (!normalizedName) return;
             const priority = SERVICE_ICON_EXTENSION_PRIORITY[extension] ?? Number.MAX_SAFE_INTEGER;
             const currentEntry = iconEntries.get(normalizedName);
+            const recordedFiles = duplicateEntries.get(normalizedName) || [];
+            recordedFiles.push(fileName);
+            duplicateEntries.set(normalizedName, recordedFiles);
             if (currentEntry && currentEntry.priority <= priority) return;
             iconEntries.set(normalizedName, {
                 priority,
-                url: `/${encodeURIComponent('All Pngs')}/${encodeURIComponent(fileName)}`
+                fileName,
+                url: encodeURI(`/All Pngs/${fileName}`)
             });
         });
-    } catch {
+    } catch (error) {
+        console.error('Service icon manifest build failed:', error?.message || error);
     }
-    return Object.fromEntries(Array.from(iconEntries.entries()).map(([key, value]) => [key, value.url]));
+    const icons = Object.fromEntries(Array.from(iconEntries.entries()).map(([key, value]) => [key, value.url]));
+    const duplicateIconNames = Array.from(duplicateEntries.entries())
+        .filter(([, files]) => files.length > 1)
+        .map(([normalizedName, files]) => ({
+            normalizedName,
+            files: Array.from(new Set(files)).sort((left, right) => left.localeCompare(right))
+        }));
+    return {
+        icons,
+        summary: {
+            totalIconsFound,
+            totalResolvedIcons: Object.keys(icons).length,
+            duplicateIconNames
+        }
+    };
 }
 
-const SERVICE_ICON_MANIFEST = buildServiceIconManifest();
+const SERVICE_ICON_MANIFEST_DATA = buildServiceIconManifest();
+const SERVICE_ICON_MANIFEST = SERVICE_ICON_MANIFEST_DATA.icons;
+const SERVICE_ICON_SUMMARY = SERVICE_ICON_MANIFEST_DATA.summary;
 
 function getServiceCatalogLabel(serviceConfig) {
     return String(serviceConfig?.serviceName || serviceConfig?.serviceType || '')
@@ -7840,7 +7871,10 @@ app.get('/api/service-catalog', (_req, res) => {
 app.get('/api/service-icons', (_req, res) => {
     try {
         res.set('Cache-Control', 'public, max-age=300');
-        res.json(SERVICE_ICON_MANIFEST);
+        res.json({
+            icons: SERVICE_ICON_MANIFEST,
+            summary: SERVICE_ICON_SUMMARY
+        });
     } catch {
         res.status(500).send('Server error');
     }
