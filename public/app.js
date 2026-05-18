@@ -36,6 +36,9 @@ const state = {
     selectedAdminHistoryUserLabel: '',
     availableServices: [],
     serviceIconMap: {},
+    serviceIconSummary: null,
+    apiCatalogServices: [],
+    serviceIconBrokenPaths: new Set(),
     waitingOrdersExpanded: false,
     processingRequestsExpanded: false,
     referralProgram: null,
@@ -279,6 +282,9 @@ const SUPPORT_WHATSAPP_URL = 'https://wa.me/447716582579?text=I%20need%20help%20
 const LOCAL_DEFAULT_LOGO_URL = '/logos/default.svg';
 let clientSignalsPromise = null;
 let serviceIconMapPromise = null;
+let serviceIconObserver = null;
+let serviceIconCoverageSummaryTimer = null;
+const SERVICE_ICON_DEBUG_PREFIX = '[service-icon]';
 
 const qs = (id) => document.getElementById(id);
 const qsa = (selector) => Array.from(document.querySelectorAll(selector));
@@ -465,13 +471,54 @@ function buildServiceShortLabel(label, fallback = '') {
 }
 
 function getStaticServiceLogoUrl(serviceType) {
+    const resolvedIcon = resolveServiceIconMatch(serviceType);
+    return resolvedIcon.finalImageUrl || LOCAL_DEFAULT_LOGO_URL;
+}
+
+function getServiceIconFileName(url) {
+    const rawFileName = String(url || '').split('/').pop() || '';
+    try {
+        return decodeURIComponent(rawFileName);
+    } catch {
+        return rawFileName;
+    }
+}
+
+function resolveServiceIconMatch(serviceType) {
     const serviceIconMap = state.serviceIconMap && typeof state.serviceIconMap === 'object' ? state.serviceIconMap : {};
-    const matchedKey = getServiceIconLookupCandidates(serviceType).find((candidate) => serviceIconMap[candidate]);
-    return matchedKey ? serviceIconMap[matchedKey] : LOCAL_DEFAULT_LOGO_URL;
+    const normalizedServiceName = normalizeServiceIconLookup(serviceType);
+    const candidates = getServiceIconLookupCandidates(serviceType);
+    const matchedKey = candidates.find((candidate) => serviceIconMap[candidate]) || '';
+    const finalImageUrl = matchedKey ? serviceIconMap[matchedKey] : '';
+    const matchedFileName = finalImageUrl ? getServiceIconFileName(finalImageUrl) : '';
+    return {
+        normalizedServiceName,
+        candidates,
+        matchedKey,
+        matchedFileName,
+        finalImageUrl
+    };
+}
+
+function logServiceIconResolution(serviceType, resolvedIcon, renderMode) {
+    console.log(SERVICE_ICON_DEBUG_PREFIX, {
+        originalServiceName: serviceType,
+        normalizedServiceName: resolvedIcon.normalizedServiceName || null,
+        matchedFilename: resolvedIcon.matchedFileName || null,
+        finalImageUrl: resolvedIcon.finalImageUrl || null,
+        renderedWith: renderMode
+    });
 }
 
 function normalizeServiceIconLookup(value) {
-    return normalizeServiceLookup(value).replace(/\s+/g, '');
+    return String(value || '')
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+        .toLowerCase()
+        .replace(/[\s&,\-\/()]+/g, '')
+        .replace(/[^a-z0-9]+/g, '')
+        .trim();
 }
 
 function addServiceIconLookupCandidate(bucket, value) {
@@ -523,18 +570,158 @@ function getServiceIconLookupCandidates(serviceType) {
     return Array.from(candidates);
 }
 
+function registerServiceIconCoverageEntry(registry, serviceType, label, source) {
+    const resolvedServiceType = String(serviceType || '').trim();
+    const resolvedLabel = String(label || resolvedServiceType || 'Service').trim();
+    const normalizedServiceName = normalizeServiceIconLookup(resolvedServiceType || resolvedLabel);
+    if (!normalizedServiceName) return;
+    if (!registry.has(normalizedServiceName)) {
+        registry.set(normalizedServiceName, {
+            normalizedServiceName,
+            serviceType: resolvedServiceType || resolvedLabel,
+            label: resolvedLabel,
+            sources: new Set()
+        });
+    }
+    const entry = registry.get(normalizedServiceName);
+    if (!entry.serviceType && resolvedServiceType) {
+        entry.serviceType = resolvedServiceType;
+    }
+    if ((!entry.label || entry.label === entry.serviceType) && resolvedLabel) {
+        entry.label = resolvedLabel;
+    }
+    entry.sources.add(source);
+}
+
+function getServiceIconCoverageEntries() {
+    const registry = new Map();
+    Object.keys(serviceMeta).forEach((serviceType) => {
+        registerServiceIconCoverageEntry(registry, serviceType, getServiceMeta(serviceType).label, 'public/app.js');
+    });
+    getDefaultServiceCatalog().forEach((service) => {
+        registerServiceIconCoverageEntry(registry, service?.serviceType, service?.label || getServiceMeta(service?.serviceType).label, 'catalog');
+    });
+    (Array.isArray(state.apiCatalogServices) ? state.apiCatalogServices : []).forEach((service) => {
+        registerServiceIconCoverageEntry(registry, service?.serviceType, service?.label, 'api');
+    });
+    (Array.isArray(state.availableServices) ? state.availableServices : []).forEach((service) => {
+        registerServiceIconCoverageEntry(registry, service?.serviceType, service?.label, 'merged');
+    });
+    return Array.from(registry.values()).sort((left, right) => left.normalizedServiceName.localeCompare(right.normalizedServiceName));
+}
+
+function buildServiceIconCoverageSummary() {
+    const coverageEntries = getServiceIconCoverageEntries();
+    const matchedServices = [];
+    const unmatchedServices = [];
+    coverageEntries.forEach((entry) => {
+        const resolvedIcon = resolveServiceIconMatch(entry.serviceType || entry.label);
+        const serviceSummary = {
+            serviceType: entry.serviceType || null,
+            label: entry.label || null,
+            normalizedServiceName: entry.normalizedServiceName || null,
+            matchedFilename: resolvedIcon.matchedFileName || null,
+            finalImageUrl: resolvedIcon.finalImageUrl || null,
+            sources: Array.from(entry.sources).sort((left, right) => left.localeCompare(right))
+        };
+        if (resolvedIcon.finalImageUrl) {
+            matchedServices.push(serviceSummary);
+            return;
+        }
+        unmatchedServices.push(serviceSummary);
+    });
+    return {
+        totalIconsFound: Number(state.serviceIconSummary?.totalIconsFound || Object.keys(state.serviceIconMap || {}).length),
+        totalResolvedIcons: Number(state.serviceIconSummary?.totalResolvedIcons || Object.keys(state.serviceIconMap || {}).length),
+        totalServicesEvaluated: coverageEntries.length,
+        totalServicesMatched: matchedServices.length,
+        unmatchedServices,
+        duplicateIconNames: Array.isArray(state.serviceIconSummary?.duplicateIconNames) ? state.serviceIconSummary.duplicateIconNames : [],
+        brokenImagePaths: Array.from(state.serviceIconBrokenPaths || [])
+    };
+}
+
+function logServiceIconCoverageSummary() {
+    const summary = buildServiceIconCoverageSummary();
+    console.groupCollapsed(`${SERVICE_ICON_DEBUG_PREFIX} coverage summary`);
+    console.log({
+        totalIconsFound: summary.totalIconsFound,
+        totalResolvedIcons: summary.totalResolvedIcons,
+        totalServicesEvaluated: summary.totalServicesEvaluated,
+        totalServicesMatched: summary.totalServicesMatched,
+        totalUnmatchedServices: summary.unmatchedServices.length,
+        duplicateIconNames: summary.duplicateIconNames.length,
+        brokenImagePaths: summary.brokenImagePaths.length
+    });
+    if (summary.unmatchedServices.length) {
+        console.log('unmatched services', summary.unmatchedServices);
+    }
+    if (summary.duplicateIconNames.length) {
+        console.log('duplicate icon names', summary.duplicateIconNames);
+    }
+    if (summary.brokenImagePaths.length) {
+        console.log('broken image paths', summary.brokenImagePaths);
+    }
+    console.groupEnd();
+}
+
+function scheduleServiceIconCoverageSummary(delay = 0) {
+    if (serviceIconCoverageSummaryTimer) {
+        window.clearTimeout(serviceIconCoverageSummaryTimer);
+    }
+    serviceIconCoverageSummaryTimer = window.setTimeout(() => {
+        serviceIconCoverageSummaryTimer = null;
+        logServiceIconCoverageSummary();
+    }, Math.max(0, Number(delay || 0)));
+}
+
 async function loadServiceIconMap() {
     if (Object.keys(state.serviceIconMap || {}).length) {
         return state.serviceIconMap;
     }
     if (!serviceIconMapPromise) {
-        serviceIconMapPromise = fetchJSON('/api/service-icons')
-            .then((iconMap) => {
+        serviceIconMapPromise = fetchJSON(`/api/service-icons?v=${Date.now()}`)
+            .then((iconPayload) => {
+                const iconMap = iconPayload?.icons && typeof iconPayload.icons === 'object'
+                    ? iconPayload.icons
+                    : (iconPayload && typeof iconPayload === 'object' ? iconPayload : {});
+                const iconSummary = iconPayload?.summary && typeof iconPayload.summary === 'object'
+                    ? iconPayload.summary
+                    : {
+                        totalIconsFound: Object.keys(iconMap || {}).length,
+                        totalResolvedIcons: Object.keys(iconMap || {}).length,
+                        duplicateIconNames: []
+                    };
                 state.serviceIconMap = iconMap && typeof iconMap === 'object' ? iconMap : {};
+                state.serviceIconSummary = iconSummary;
+                state.serviceIconBrokenPaths.clear();
+                console.log(SERVICE_ICON_DEBUG_PREFIX, {
+                    manifestLoaded: true,
+                    iconCount: Object.keys(state.serviceIconMap).length,
+                    totalIconsFound: Number(state.serviceIconSummary?.totalIconsFound || 0),
+                    duplicateIconCount: Array.isArray(state.serviceIconSummary?.duplicateIconNames) ? state.serviceIconSummary.duplicateIconNames.length : 0,
+                    amazon: state.serviceIconMap.amazon || null,
+                    twitter: state.serviceIconMap.twitter || null,
+                    netflix: state.serviceIconMap.netflix || null,
+                    discord: state.serviceIconMap.discord || null,
+                    steam: state.serviceIconMap.steam || null,
+                    linkedin: state.serviceIconMap.linkedin || null,
+                    cashapp: state.serviceIconMap.cashapp || null
+                });
                 return state.serviceIconMap;
             })
-            .catch(() => {
+            .catch((error) => {
                 state.serviceIconMap = {};
+                state.serviceIconSummary = {
+                    totalIconsFound: 0,
+                    totalResolvedIcons: 0,
+                    duplicateIconNames: []
+                };
+                state.serviceIconBrokenPaths.clear();
+                console.warn(SERVICE_ICON_DEBUG_PREFIX, {
+                    manifestLoaded: false,
+                    error: error?.message || String(error || 'Unknown service icon manifest error')
+                });
                 return state.serviceIconMap;
             });
     }
@@ -721,7 +908,9 @@ async function loadAvailableServices() {
         apiServices = Array.isArray(services)
             ? services.map((service) => normalizeServiceCatalogEntry(service)).filter(Boolean)
             : [];
+        state.apiCatalogServices = apiServices;
     } catch {
+        state.apiCatalogServices = [];
     }
     let fallbackServices = [];
     try {
@@ -750,6 +939,7 @@ async function loadAvailableServices() {
         }
         renderServiceGrid();
     }
+    scheduleServiceIconCoverageSummary(0);
 }
 
 function getServiceMeta(serviceType) {
@@ -764,17 +954,18 @@ function renderFallbackServiceGlyph(serviceType) {
 }
 
 function renderServiceBrandImageGlyph(serviceType) {
-    const normalizedService = normalizeServiceIconLookup(serviceType);
-    if (normalizedService !== 'whatsapp') {
-        const staticLogoUrl = getStaticServiceLogoUrl(serviceType);
-        if (staticLogoUrl && staticLogoUrl !== LOCAL_DEFAULT_LOGO_URL) {
+    const resolvedIcon = resolveServiceIconMatch(serviceType);
+    if (resolvedIcon.normalizedServiceName !== 'whatsapp') {
+        if (resolvedIcon.finalImageUrl) {
+            logServiceIconResolution(serviceType, resolvedIcon, '<img src="...">');
             return `
                 <span class="inline-flex h-full w-full items-center justify-center overflow-hidden rounded-[7px] bg-white/95 p-[1px]">
-                    <img src="${escapeAttr(staticLogoUrl)}" alt="" loading="lazy" decoding="async" aria-hidden="true">
+                    <img class="service-icon-img" src="${escapeAttr(resolvedIcon.finalImageUrl)}" alt="" loading="lazy" decoding="async" aria-hidden="true">
                 </span>
             `;
         }
     }
+    logServiceIconResolution(serviceType, resolvedIcon, 'fallback');
     const svgMarkup = renderServiceSvg(serviceType);
     if (svgMarkup) {
         return `<span class="inline-flex h-full w-full items-center justify-center overflow-hidden rounded-[7px] bg-white/95 p-[1px]">${svgMarkup}</span>`;
@@ -837,6 +1028,106 @@ function renderServiceLogo(serviceType, size = 'md') {
     const imageMarkup = renderServiceBrandImageGlyph(serviceType);
     const finalMarkup = imageMarkup || renderFallbackServiceGlyph(serviceType);
     return `<span class="${sizeMap[size] || sizeMap.md}">${finalMarkup}</span>`;
+}
+
+function renderServiceLogoFallbackOnly(serviceType, size = 'md') {
+    const sizeMap = {
+        sm: 'service-logo service-logo--sm',
+        md: 'service-logo service-logo--md',
+        lg: 'service-logo service-logo--lg',
+        xl: 'service-logo service-logo--xl'
+    };
+    return `<span class="${sizeMap[size] || sizeMap.md}">${renderFallbackServiceGlyph(serviceType)}</span>`;
+}
+
+function disconnectServiceIconObserver() {
+    if (!serviceIconObserver) return;
+    serviceIconObserver.disconnect();
+    serviceIconObserver = null;
+}
+
+function createServiceIconObserver() {
+    if (!('IntersectionObserver' in window)) return null;
+    if (serviceIconObserver) return serviceIconObserver;
+    const serviceGridShell = document.querySelector('.service-grid-shell');
+    serviceIconObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            renderVisibleServiceIconSlot(entry.target);
+            serviceIconObserver?.unobserve(entry.target);
+        });
+    }, {
+        root: serviceGridShell || null,
+        rootMargin: '120px 0px',
+        threshold: 0.01
+    });
+    return serviceIconObserver;
+}
+
+function isServiceIconSlotVisible(slot) {
+    if (!slot) return false;
+    const slotRect = slot.getBoundingClientRect();
+    const serviceGridShell = slot.closest('.service-grid-shell');
+    if (serviceGridShell) {
+        const shellRect = serviceGridShell.getBoundingClientRect();
+        return slotRect.bottom >= shellRect.top - 80 && slotRect.top <= shellRect.bottom + 80;
+    }
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    return slotRect.bottom >= -80 && slotRect.top <= viewportHeight + 80;
+}
+
+function renderVisibleServiceIconSlot(slot) {
+    if (!slot || slot.dataset.iconRendered === 'true') return;
+    const serviceType = slot.dataset.serviceIcon;
+    const logoSize = slot.dataset.logoSize || 'md';
+    const resolvedIcon = resolveServiceIconMatch(serviceType);
+    console.log(SERVICE_ICON_DEBUG_PREFIX, {
+        originalServiceName: serviceType,
+        normalizedServiceName: resolvedIcon.normalizedServiceName || null,
+        matchedFilename: resolvedIcon.matchedFileName || null,
+        finalImageUrl: resolvedIcon.finalImageUrl || null,
+        phase: 'before-render'
+    });
+    slot.innerHTML = renderServiceLogo(serviceType, logoSize);
+    slot.dataset.iconRendered = 'true';
+    attachServiceIconImageHandlers(slot, serviceType, logoSize);
+}
+
+function attachServiceIconImageHandlers(slot, serviceType, size = 'md') {
+    const image = slot.querySelector('img');
+    if (!image) return;
+    const resolvedIcon = resolveServiceIconMatch(serviceType);
+    image.addEventListener('load', () => {
+        const resolvedImagePath = image.currentSrc || image.getAttribute('src') || resolvedIcon.finalImageUrl || '';
+        if (resolvedImagePath) {
+            state.serviceIconBrokenPaths.delete(resolvedImagePath);
+        }
+        console.log(SERVICE_ICON_DEBUG_PREFIX, {
+            originalServiceName: serviceType,
+            normalizedServiceName: resolvedIcon.normalizedServiceName || null,
+            matchedFilename: resolvedIcon.matchedFileName || null,
+            finalImageUrl: resolvedImagePath || null,
+            renderedWith: '<img src="...">',
+            status: 'loaded'
+        });
+    }, { once: true });
+    image.addEventListener('error', () => {
+        const brokenImagePath = image.currentSrc || image.getAttribute('src') || resolvedIcon.finalImageUrl || '';
+        if (brokenImagePath) {
+            state.serviceIconBrokenPaths.add(brokenImagePath);
+        }
+        console.warn(SERVICE_ICON_DEBUG_PREFIX, {
+            originalServiceName: serviceType,
+            normalizedServiceName: resolvedIcon.normalizedServiceName || null,
+            matchedFilename: resolvedIcon.matchedFileName || null,
+            finalImageUrl: brokenImagePath || null,
+            renderedWith: '<img src="...">',
+            status: 'error',
+            fallbackApplied: true
+        });
+        slot.innerHTML = renderServiceLogoFallbackOnly(serviceType, size);
+        scheduleServiceIconCoverageSummary(0);
+    }, { once: true });
 }
 
 function formatMoney(value) {
@@ -1501,9 +1792,18 @@ function filterServiceButtons() {
 }
 
 function hydrateStaticServiceIcons() {
+    disconnectServiceIconObserver();
+    const observer = createServiceIconObserver();
     qsa('[data-service-icon]').forEach((slot) => {
         const serviceType = slot.dataset.serviceIcon;
-        slot.innerHTML = renderServiceLogo(serviceType, slot.dataset.logoSize || 'md');
+        const logoSize = slot.dataset.logoSize || 'md';
+        slot.dataset.iconRendered = 'false';
+        slot.innerHTML = renderServiceLogoFallbackOnly(serviceType, logoSize);
+        if (observer && !isServiceIconSlotVisible(slot)) {
+            observer.observe(slot);
+            return;
+        }
+        renderVisibleServiceIconSlot(slot);
     });
 }
 
